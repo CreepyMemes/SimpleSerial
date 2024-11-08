@@ -1,7 +1,7 @@
 #include "SimpleSerial.h"
 
 SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
-                           const uint32_t stack_size, const UBaseType_t priority, const uint64_t timeout_duration) :
+                           const uint32_t stack_size, const UBaseType_t priority, const uint64_t timeout_duration, uint8_t max_retries) :
     _serial(serial),
     _pin_rx(rx_pin),
     _pin_tx(tx_pin),
@@ -9,7 +9,8 @@ SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const in
     _pin_rts(rts_pin),
     _stack_size_task(stack_size),
     _priority_task(priority),
-    _timeout(timeout_duration) {
+    _timeout(timeout_duration),
+    _max_retries(max_retries) {
 
     _handle_task = NULL;                                 // Initialize the main task's handle to null
     _queue_cmds_out = xQueueCreate(10, sizeof(Command)); // Create the queue that holds outgoing messages
@@ -35,24 +36,6 @@ void SimpleSerial::sendCommand(const Command cmd) {
     xQueueSend(_queue_cmds_out, &cmd, (TickType_t)10);
 }
 
-bool SimpleSerial::_is_sender_success(const Command cmd) {
-
-    // Check if the other ESP32 accepted the request to send a command
-    if (_request_to_send()) {
-
-        // Check if the command was sent successfully
-        if (_is_cmd_sent(cmd)) {
-
-            // Exit sender mode and await the receiver to exit as well
-            if (_is_send_mode_done()) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
     if (xQueueReceive(_queue_cmds_out, (void *)&cmd, (TickType_t)10) == pdTRUE) {
         ESP_LOGD(TAG, "New command to be sent: %d", cmd);
@@ -67,6 +50,12 @@ bool SimpleSerial::_is_cmd_to_receive() {
 }
 
 bool SimpleSerial::_request_to_send() {
+
+    if (digitalRead(_pin_cts) == HIGH) {
+        ESP_LOGE(TAG, "Error CTS pin is HIGH!");
+        return false;
+    }
+
     ESP_LOGD(TAG, "Requesting to send...");
 
     digitalWrite(_pin_rts, HIGH);
@@ -135,6 +124,40 @@ bool SimpleSerial::_is_send_mode_done() {
     return false;
 }
 
+bool SimpleSerial::_is_sender_success(const Command cmd) {
+
+    // Check if the other ESP32 accepted the request to send a command
+    if (_request_to_send()) {
+
+        // Check if the command was sent successfully
+        if (_is_cmd_sent(cmd)) {
+
+            // Exit sender mode and await the receiver to exit as well
+            if (_is_send_mode_done()) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool SimpleSerial::_sender_retry(const Command cmd) {
+
+    // Retry to send the message if it fails
+    for (int attempt = 0; attempt < _max_retries; attempt++) {
+
+        if (_is_sender_success(cmd)) {
+            return true;
+        }
+
+        ESP_LOGD(TAG, "Retrying...");
+    }
+
+    ESP_LOGE(TAG, "Failed to send message after %d attempts", _max_retries);
+    return false;
+}
+
 void SimpleSerial::_task_main(void *pvParameters) {
     SimpleSerial *self = (SimpleSerial *)pvParameters; // Cast pvParameters to SimpleSerial pointer
     Command cmd;
@@ -144,9 +167,13 @@ void SimpleSerial::_task_main(void *pvParameters) {
         // Check if there's a command to be sent by this ESP32
         if (self->_is_cmd_to_send(cmd)) {
 
-            if (!self->_is_sender_success(cmd)) {
+            // If sending fails, halt program execution (FOR NOW, TO REMOVE LATER)
+            if (!self->_sender_retry(cmd)) {
+                ESP_LOGE(TAG, "HALTING PROGRAM");
 
-                // gg
+                while (true) {
+                    vTaskDelay(10 / portTICK_PERIOD_MS);
+                }
             }
         }
         // Check if there's a request to receive a command sent by the other ESP32

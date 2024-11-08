@@ -15,7 +15,7 @@ enum Command : uint8_t {
 class SimpleSerial {
     public:
         SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
-                     const uint32_t stack_size = 4096, const UBaseType_t priority = 5, const uint64_t timeout_duration = 1000);
+                     const uint32_t stack_size = 4096, const UBaseType_t priority = 5, const uint64_t timeout_duration = 1000, uint8_t max_retries = 3);
         ~SimpleSerial();
 
         void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_7E2);
@@ -36,15 +36,16 @@ class SimpleSerial {
         TaskHandle_t _handle_task;     // Task handle of the outgoing commands task
 
         SimpleTimeOut _timeout;
+        uint8_t _max_retries;
 
         bool _is_cmd_to_send(const Command &cmd);
         bool _is_cmd_to_receive();
 
-        bool _is_sender_success(const Command cmd);
-
         bool _request_to_send();
         bool _is_cmd_sent(const Command cmd);
         bool _is_send_mode_done();
+        bool _is_sender_success(const Command cmd);
+        bool _sender_retry(const Command cmd);
 
         static void _task_main(void *pvParameters);
 
