@@ -24,8 +24,8 @@ class SimpleSerial {
     private:
         HardwareSerial *_serial; // Pointer to the UART protocol interface instance
 
-        int8_t _pin_tx;
         int8_t _pin_rx;
+        int8_t _pin_tx;
         int8_t _pin_cts;
         int8_t _pin_rts;
 
