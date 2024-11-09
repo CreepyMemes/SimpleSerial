@@ -117,7 +117,7 @@ bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, sent command has not received confirmation!");
+    ESP_LOGW(TAG, "Timeout, receiver did not send any confirmation!");
     return false;
 }
 
@@ -206,7 +206,7 @@ bool SimpleSerial::_is_received_confirmed(const Command cmd) {
     ESP_LOGD(TAG, "Command echoed back, awaiting confirmation..");
 
     _timeout.start();
-    while (!_timeout.isExpired_half()) {
+    while (!_timeout.isExpired()) {
         if (digitalRead(_pin_cts) == LOW) {
             ESP_LOGD(TAG, "Echoed command has been confirmed!");
             return true;

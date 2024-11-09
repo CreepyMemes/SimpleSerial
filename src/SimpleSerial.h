@@ -17,6 +17,7 @@ enum Command : uint8_t {
 };
 
 // TODO: add a way to tell the user that the sender mode is busy, use queue or some shit
+// TODO BUGFIX: if i set sender's TX pin always high, some fucked up shit happens
 
 class SimpleSerial {
     public:
