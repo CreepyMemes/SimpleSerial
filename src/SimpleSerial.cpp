@@ -170,8 +170,10 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
         }
 
         if (attempt != _max_retries - 1) {
-            ESP_LOGI(TAG, "Retrying to send...\n");
+            ESP_LOGW(TAG, "Retrying to send...\n");
         }
+
+        delay(1); // To avoid flooding the CPU
     }
 
     return false;
