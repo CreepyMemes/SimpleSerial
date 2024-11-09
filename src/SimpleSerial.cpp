@@ -258,7 +258,12 @@ bool SimpleSerial::_is_receival_success() {
         // }
     }
 
+    // Exit receiver mode
     _exit_mode("Receiver");
+
+    // Wait until sender exits as well (for sync)
+    _is_peer_exit("Sender");
+
     ESP_LOGE(TAG, "Receiver protocol failed!\n");
     return false;
 }
