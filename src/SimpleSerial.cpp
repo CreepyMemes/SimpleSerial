@@ -71,6 +71,11 @@ bool SimpleSerial::_is_peer_exit(const char *peer_role) {
     return false;
 }
 
+void SimpleSerial::_exit_mode(const char *mode) {
+    digitalWrite(_pin_rts, LOW);
+    ESP_LOGD(TAG, "Exited from %s Mode", mode);
+}
+
 bool SimpleSerial::_request_to_send() {
     digitalWrite(_pin_rts, HIGH);
     ESP_LOGD(TAG, "Entered Sender Mode, awaiting permission to send...");
@@ -121,11 +126,6 @@ bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
     return false;
 }
 
-void SimpleSerial::_exit_send_mode() {
-    digitalWrite(_pin_rts, LOW);
-    ESP_LOGD(TAG, "Exited from Sender Mode");
-}
-
 bool SimpleSerial::_is_sender_success(const Command cmd) {
 
     // Check if the other ESP32 accepted the request to send a command
@@ -138,7 +138,7 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
         if (_is_sent_confirmed(cmd)) {
 
             // Exit sender mode first (receiver takes this as confirmation successfull)
-            _exit_send_mode();
+            _exit_mode("Sender");
 
             // Check if the receiver exited as well
             if (_is_peer_exit("Receiver")) {
@@ -150,12 +150,12 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
         else if (_is_peer_exit("Receiver")) {
 
             // Exit after receiver exits
-            _exit_send_mode();
+            _exit_mode("Sender");
             return false;
         }
     }
 
-    _exit_send_mode();
+    _exit_mode("Sender");
     return false;
 }
 
@@ -219,11 +219,6 @@ bool SimpleSerial::_is_received_confirmed(const Command cmd) {
     return false;
 }
 
-void SimpleSerial::_exit_receiver_mode() {
-    digitalWrite(_pin_rts, LOW);
-    ESP_LOGD(TAG, "Exited from Receiver Mode");
-}
-
 // Will not retry if it fails, that's the sender's job
 bool SimpleSerial::_is_receival_success() {
     Command cmd;
@@ -240,7 +235,7 @@ bool SimpleSerial::_is_receival_success() {
         if (_is_received_confirmed(cmd)) {
 
             // Exit receiver mode (since the sender confirmation is them exiting)
-            _exit_receiver_mode();
+            _exit_mode("Receiver");
 
             ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
             return true;
@@ -249,7 +244,7 @@ bool SimpleSerial::_is_receival_success() {
         // Sender did't send a confirmation (or they didn't exit)
         else {
             // Exit receiver mode
-            _exit_receiver_mode();
+            _exit_mode("Receiver");
 
             // Wait until sender exits as well
             if (_is_peer_exit("Sender")) {
@@ -259,7 +254,7 @@ bool SimpleSerial::_is_receival_success() {
         }
     }
 
-    _exit_receiver_mode();
+    _exit_mode("Receiver");
     return false;
 }
 

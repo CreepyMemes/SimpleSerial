@@ -48,18 +48,18 @@ class SimpleSerial {
         bool _is_cmd_to_send(const Command &cmd);
         bool _is_cmd_to_receive();
         bool _is_peer_exit(const char *peer_role);
+        void _exit_mode(const char *mode);
 
         bool _request_to_send();
         void _send_command(const Command cmd);
         bool _is_sent_confirmed(const Command cmd);
-        void _exit_send_mode();
+
         bool _is_sender_success(const Command cmd);
         bool _sender_retry(const Command cmd);
 
         void _accept_request();
         bool _is_cmd_received(Command &cmd);
         bool _is_received_confirmed(const Command cmd);
-        void _exit_receiver_mode();
         bool _is_receival_success();
 
         static void _task_main(void *pvParameters);
