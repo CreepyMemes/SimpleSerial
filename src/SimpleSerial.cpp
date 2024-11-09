@@ -291,7 +291,7 @@ void SimpleSerial::_task_main(void *pvParameters) {
 
             // If sending fails, halt program execution (FOR NOW, TO REMOVE LATER)
             if (!self->_sender_retry(cmd)) {
-                ESP_LOGE(TAG, "Sender protocol failed, after %d attempts!\n", self->_max_retries);
+                ESP_LOGE(TAG, "Sender protocol failed after %d attempts!\n", self->_max_retries);
             }
         }
         // Check if there's a request to receive a command sent by the other ESP32
