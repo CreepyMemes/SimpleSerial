@@ -43,9 +43,16 @@ class SimpleSerial {
 
         bool _request_to_send();
         bool _is_cmd_sent(const Command cmd);
+        void _exit_send_mode();
         bool _is_send_mode_done();
         bool _is_sender_success(const Command cmd);
         bool _sender_retry(const Command cmd);
+
+        void _accept_request();
+        bool _is_cmd_received(Command &cmd);
+        bool _is_cmd_confirmed(const Command cmd);
+        void _exit_receiver_mode();
+        bool _is_receival_success();
 
         static void _task_main(void *pvParameters);
 
