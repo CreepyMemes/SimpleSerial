@@ -68,7 +68,7 @@ void SimpleSerial::_send_confirmation() {
 }
 
 bool SimpleSerial::_is_confirmed() {
-    ESP_LOGW(TAG, "Awaiting for confirmation...");
+    ESP_LOGD(TAG, "Awaiting for confirmation...");
 
     _timeout.start();
     while (!_timeout.isExpired()) {
@@ -266,7 +266,7 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
 
 void SimpleSerial::_send_cmd_echo(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
-    ESP_LOGD(TAG, "Echoed back command: %x", cmd);
+    ESP_LOGD(TAG, "Echoed back command: 0x%x", cmd);
 }
 
 // Will not retry if it fails, that's the sender's job
@@ -279,7 +279,7 @@ bool SimpleSerial::_is_receival_success() {
     // Check if a command has been received
     if (_is_cmd_received(cmd)) {
 
-        cmd = CMD_WRONG; // intentional bug
+        // cmd = CMD_WRONG; // intentional bug
 
         // Echo back command for confirmation
         _send_cmd_echo(cmd);
