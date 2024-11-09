@@ -5,7 +5,7 @@ void halt_program() {
     ESP_LOGE("simple_serial", "HALTING PROGRAM");
 
     while (true) {
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        delay(1);
     }
 }
 
@@ -76,7 +76,7 @@ bool SimpleSerial::_request_to_send() {
             return true;
         }
 
-        vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
+        delay(1); // To avoid flooding the CPU
     }
 
     ESP_LOGW(TAG, "Timeout, request failed!");
@@ -108,7 +108,8 @@ bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
                 return false;
             }
         }
-        vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
+
+        delay(1); // To avoid flooding the CPU
     }
 
     ESP_LOGW(TAG, "Timeout, sent command got no confirmation!");
@@ -129,7 +130,8 @@ bool SimpleSerial::_is_receiver_exit() {
             ESP_LOGD(TAG, "Receiver exited!");
             return true;
         }
-        vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
+
+        delay(1); // To avoid flooding the CPU
     }
 
     ESP_LOGW(TAG, "Timeout, Receiver didn't exit!");
@@ -203,7 +205,7 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
             return true;
         }
 
-        vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
+        delay(1); // To avoid flooding the CPU
     }
 
     ESP_LOGW(TAG, "Timeout, didn't receive any command!");
@@ -224,7 +226,7 @@ bool SimpleSerial::_is_received_confirmed(const Command cmd) {
             return true;
         }
 
-        vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
+        delay(1); // To avoid flooding the CPU
     }
 
     ESP_LOGW(TAG, "Timeout, command received not confirmed!");
@@ -284,6 +286,6 @@ void SimpleSerial::_task_main(void *pvParameters) {
             }
         }
 
-        vTaskDelay(10 / portTICK_PERIOD_MS); // Give other tasks a chance to run
+        delay(1); // Give other tasks a chance to run
     }
 }

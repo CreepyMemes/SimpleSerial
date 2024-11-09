@@ -17,6 +17,9 @@ enum Command : uint8_t {
 };
 
 // TODO: add a way to tell the user that the sender mode is busy, use queue or some shit
+
+// TODO: if we put the sender's rx pin to always high, theres a bug on receiver's end
+
 class SimpleSerial {
     public:
         SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
