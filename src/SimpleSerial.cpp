@@ -63,6 +63,23 @@ bool SimpleSerial::_is_cmd_to_receive() {
     return false;
 }
 
+bool SimpleSerial::_is_peer_exit(const char *peer_role) {
+    ESP_LOGD(TAG, "Awaiting %s to exit...", peer_role);
+
+    _timeout.start();
+    while (!_timeout.isExpired()) {
+        if (digitalRead(_pin_cts) == LOW) {
+            ESP_LOGD(TAG, "%s exited!", peer_role);
+            return true;
+        }
+
+        delay(1); // To avoid flooding the CPU
+    }
+
+    ESP_LOGW(TAG, "Timeout, %s didn't exit!", peer_role);
+    return false;
+}
+
 bool SimpleSerial::_request_to_send() {
     digitalWrite(_pin_rts, HIGH);
     ESP_LOGD(TAG, "Entered Sender Mode, awaiting permission to send...");
@@ -120,23 +137,6 @@ void SimpleSerial::_exit_send_mode() {
     ESP_LOGD(TAG, "Exited from Sender Mode");
 }
 
-bool SimpleSerial::_is_receiver_exit() {
-    ESP_LOGD(TAG, "Awaiting Receiver to exit...");
-
-    _timeout.start();
-    while (!_timeout.isExpired()) {
-        if (digitalRead(_pin_cts) == LOW) {
-            ESP_LOGD(TAG, "Receiver exited!");
-            return true;
-        }
-
-        delay(1); // To avoid flooding the CPU
-    }
-
-    ESP_LOGW(TAG, "Timeout, Receiver didn't exit!");
-    return false;
-}
-
 bool SimpleSerial::_is_sender_success(const Command cmd) {
 
     // Check if the other ESP32 accepted the request to send a command
@@ -152,13 +152,13 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
             _exit_send_mode();
 
             // Check if the receiver exited as well
-            if (_is_receiver_exit()) {
+            if (_is_peer_exit("Receiver")) {
                 return true;
             }
         }
 
         // Confirmation failed, wait until the receiver exits when it's timeout runs out)
-        else if (_is_receiver_exit()) {
+        else if (_is_peer_exit("Receiver")) {
 
             // Exit after receiver exits
             _exit_send_mode();
@@ -219,15 +219,14 @@ bool SimpleSerial::_is_received_confirmed(const Command cmd) {
     _timeout.start();
     while (!_timeout.isExpired_half()) {
         if (digitalRead(_pin_cts) == LOW) {
-
-            ESP_LOGD(TAG, "Command received Confirmed!");
+            ESP_LOGD(TAG, "Echoed command has been confirmed!");
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, command received not confirmed!");
+    ESP_LOGW(TAG, "Timeout, sender did not confirm echoed command!");
     return false;
 }
 
@@ -248,7 +247,7 @@ bool SimpleSerial::_is_receival_success() {
 
         cmd = CMD_WRONG; // intentional bug
 
-        // Check if the received command is correct
+        // Check if the sender confirms the received command
         if (_is_received_confirmed(cmd)) {
 
             // Exit receiver mode
@@ -257,8 +256,21 @@ bool SimpleSerial::_is_receival_success() {
             ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
             return true;
         }
+
+        // Received command has not been confirmed
+        else {
+
+            // Exit receiver mode
+            _exit_receiver_mode();
+
+            // Wait until sender exits as well
+            if (_is_peer_exit("Sender")) {
+                return false;
+            }
+        }
     }
 
+    ESP_LOGE(TAG, "Some shit got really fucked, sender still didn't exit!\n");
     _exit_receiver_mode();
     return false;
 }
