@@ -1,5 +1,14 @@
 #include "SimpleSerial.h"
 
+// Temporary, REMOVE LATER
+void halt_program() {
+    ESP_LOGE("simple_serial", "HALTING PROGRAM");
+
+    while (true) {
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+}
+
 SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
                            const uint32_t stack_size, const UBaseType_t priority, const uint64_t timeout_duration, uint8_t max_retries) :
     _serial(serial),
@@ -46,7 +55,12 @@ bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
 }
 
 bool SimpleSerial::_is_cmd_to_receive() {
-    return digitalRead(_pin_cts) == HIGH;
+    if (digitalRead(_pin_cts) == HIGH) {
+        ESP_LOGD(TAG, "Received a sender request!");
+        return true;
+    }
+
+    return false;
 }
 
 bool SimpleSerial::_request_to_send() {
@@ -79,11 +93,10 @@ bool SimpleSerial::_request_to_send() {
 
 bool SimpleSerial::_is_cmd_sent(const Command cmd) {
     ESP_LOGD(TAG, "Attempting to send...");
-
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
-    Command response;
 
-    ESP_LOGD(TAG, "Awaiting command confirmation...");
+    ESP_LOGD(TAG, "Command sent, now awaiting confirmation...");
+    Command response;
 
     _timeout.start();
     while (!_timeout.isExpired()) {
@@ -105,10 +118,12 @@ bool SimpleSerial::_is_cmd_sent(const Command cmd) {
     return false;
 }
 
-bool SimpleSerial::_is_send_mode_done() {
-    ESP_LOGD(TAG, "Exiting Sender Mode...");
+void SimpleSerial::_exit_send_mode() {
     digitalWrite(_pin_rts, LOW);
+    ESP_LOGD(TAG, "Exited from Sender Mode");
+}
 
+bool SimpleSerial::_is_send_mode_done() {
     ESP_LOGD(TAG, "Awaiting Receiver to exit...");
 
     _timeout.start();
@@ -132,13 +147,19 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
         // Check if the command was sent successfully
         if (_is_cmd_sent(cmd)) {
 
-            // Exit sender mode and await the receiver to exit as well
+            // Exit sender mode
+            _exit_send_mode();
+
+            // Check if the receiver exited as well
             if (_is_send_mode_done()) {
+
+                ESP_LOGD(TAG, "Sender protocol completed successfully!");
                 return true;
             }
         }
     }
 
+    _exit_send_mode();
     return false;
 }
 
@@ -158,6 +179,81 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
     return false;
 }
 
+void SimpleSerial::_accept_request() {
+    digitalWrite(_pin_rts, HIGH);
+    ESP_LOGD(TAG, "Accepted request!");
+}
+
+bool SimpleSerial::_is_cmd_received(Command &cmd) {
+    ESP_LOGD(TAG, "Ready to receive...");
+
+    _timeout.start();
+    while (!_timeout.isExpired()) {
+        if (_serial->available()) {
+            cmd = (Command)_serial->read();
+            ESP_LOGD(TAG, "Received command: %x", cmd);
+            return true;
+        }
+
+        vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
+    }
+
+    ESP_LOGE(TAG, "Timeout, didn't receive any command!");
+    return false;
+}
+
+bool SimpleSerial::_is_cmd_confirmed(const Command cmd) {
+    ESP_LOGD(TAG, "Resending command for confirmation...");
+    _serial->write((uint8_t *)&cmd, sizeof(cmd));
+
+    ESP_LOGD(TAG, "Awaiting Confirmation...");
+
+    _timeout.start();
+    while (!_timeout.isExpired()) {
+        if (digitalRead(_pin_cts) == LOW) {
+
+            ESP_LOGD(TAG, "Command Confirmed!");
+            return true;
+        }
+
+        vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
+    }
+
+    ESP_LOGE(TAG, "Timeout, command not confirmed!");
+    return false;
+}
+
+void SimpleSerial::_exit_receiver_mode() {
+    digitalWrite(_pin_rts, LOW);
+    ESP_LOGD(TAG, "Exited from Receiver Mode");
+}
+
+// Will not retry if it fails, that's the sender's job
+bool SimpleSerial::_is_receival_success() {
+
+    Command cmd;
+
+    // Accept the sender request by the other ESP32, by setting RTS pin HIGH
+    _accept_request();
+
+    // Check if a command has been received
+    if (_is_cmd_received(cmd)) {
+
+        // Check if the received command is correct
+        if (_is_cmd_confirmed(cmd)) {
+
+            // Exit receiver mode
+            _exit_receiver_mode();
+
+            ESP_LOGD(TAG, "Receiver protocol completed successfully!");
+            return true;
+        }
+    }
+
+    _exit_receiver_mode();
+    return false;
+}
+
 void SimpleSerial::_task_main(void *pvParameters) {
     SimpleSerial *self = (SimpleSerial *)pvParameters; // Cast pvParameters to SimpleSerial pointer
     Command cmd;
@@ -169,17 +265,14 @@ void SimpleSerial::_task_main(void *pvParameters) {
 
             // If sending fails, halt program execution (FOR NOW, TO REMOVE LATER)
             if (!self->_sender_retry(cmd)) {
-                ESP_LOGE(TAG, "HALTING PROGRAM");
-
-                while (true) {
-                    vTaskDelay(10 / portTICK_PERIOD_MS);
-                }
+                halt_program();
             }
         }
         // Check if there's a request to receive a command sent by the other ESP32
         else if (self->_is_cmd_to_receive()) {
-
-            // TODO: receiver pipeline
+            if (!self->_is_receival_success()) {
+                halt_program();
+            }
         }
         vTaskDelay(10 / portTICK_PERIOD_MS); // Give other tasks a chance to run
     }
