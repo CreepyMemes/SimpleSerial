@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <SimpleTimeOut.h>
 
-#define SIMPLE_SERIAL_TIMEOUT 3000
+#define SIMPLE_SERIAL_TIMEOUT 500
 
 // Define binary commands using an enum
 enum Command : uint8_t {
@@ -19,7 +19,7 @@ enum Command : uint8_t {
 class SimpleSerial {
     public:
         SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
-                     const uint32_t stack_size = 4096, const UBaseType_t priority = 5, uint8_t max_retries = 2);
+                     const uint32_t stack_size = 4096, const UBaseType_t priority = 5, uint8_t max_retries = 3);
         ~SimpleSerial();
 
         void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_7E1);
