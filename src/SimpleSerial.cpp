@@ -56,30 +56,12 @@ bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
 
 bool SimpleSerial::_is_cmd_to_receive() {
     if (digitalRead(_pin_cts) == HIGH) {
-        ESP_LOGD(TAG, "Received a sender request!");
+        ESP_LOGI(TAG, "Received a new sender request!");
         return true;
     }
 
     return false;
 }
-
-// bool SimpleSerial::_is_line_available() {
-//     ESP_LOGD(TAG, "Waiting for line availability...");
-
-//     _timeout.start();
-//     while (!_timeout.isExpired()) {
-
-//         if (digitalRead(_pin_cts) == LOW) {
-//             ESP_LOGD(TAG, "Line available, proceeding...");
-//             return true;
-//         }
-
-//         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
-//     }
-
-//     ESP_LOGW(TAG, "Timeout, line still not available (CTS PIN still HIGH)");
-//     return false;
-// }
 
 bool SimpleSerial::_request_to_send() {
     digitalWrite(_pin_rts, HIGH);
@@ -276,7 +258,7 @@ bool SimpleSerial::_is_receival_success() {
             // Exit receiver mode
             _exit_receiver_mode();
 
-            ESP_LOGI(TAG, "Receiver protocol completed successfully!");
+            ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
             return true;
         }
     }
