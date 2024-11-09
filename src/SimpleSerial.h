@@ -16,9 +16,6 @@ enum Command : uint8_t {
     CMD_WRONG = 0x45
 };
 
-// TODO: add a way to tell the user that the sender mode is busy, use queue or some shit
-// TODO BUGFIX: if i set sender's TX pin always high, some fucked up shit happens
-
 class SimpleSerial {
     public:
         SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
@@ -45,22 +42,22 @@ class SimpleSerial {
         SimpleTimeOut _timeout;
         uint8_t _max_retries;
 
-        bool _is_cmd_to_send(const Command &cmd);
-        bool _is_cmd_to_receive();
-        bool _is_peer_exit(const char *peer_role);
         void _exit_mode(const char *mode);
+        bool _is_peer_exit(const char *peer_role);
+        void _send_confirmation();
+        bool _is_confirmed();
 
+        bool _is_cmd_to_send(const Command &cmd);
         bool _request_to_send();
         void _send_command(const Command cmd);
         bool _is_sent_confirmed(const Command cmd);
-
         bool _is_sender_success(const Command cmd);
         bool _sender_retry(const Command cmd);
 
+        bool _is_cmd_to_receive();
         void _accept_request();
         bool _is_cmd_received(Command &cmd);
         void _echo_back_cmd(Command cmd);
-        bool _is_received_confirmed(const Command cmd);
         bool _is_receival_success();
 
         static void _task_main(void *pvParameters);

@@ -1,5 +1,7 @@
 #include "SimpleSerial.h"
 
+// -------------------------------------- PUBLIC METHODS -----------------------------------------------------
+
 SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
                            const uint32_t stack_size, const UBaseType_t priority, uint8_t max_retries) :
     _serial(serial),
@@ -36,22 +38,11 @@ void SimpleSerial::send(const Command cmd) {
     xQueueSend(_queue_cmds_out, &cmd, (TickType_t)10);
 }
 
-bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
-    if (xQueueReceive(_queue_cmds_out, (void *)&cmd, (TickType_t)10) == pdTRUE) {
-        ESP_LOGI(TAG, "New command to be sent: 0x%x", cmd);
-        return true;
-    }
+// -------------------------------------- PRIVATE METHODS -----------------------------------------------------
 
-    return false;
-}
-
-bool SimpleSerial::_is_cmd_to_receive() {
-    if (digitalRead(_pin_cts) == HIGH) {
-        ESP_LOGI(TAG, "Received a new sender request!");
-        return true;
-    }
-
-    return false;
+void SimpleSerial::_exit_mode(const char *mode) {
+    digitalWrite(_pin_rts, LOW);
+    ESP_LOGD(TAG, "Exited from %s Mode", mode);
 }
 
 bool SimpleSerial::_is_peer_exit(const char *peer_role) {
@@ -71,9 +62,39 @@ bool SimpleSerial::_is_peer_exit(const char *peer_role) {
     return false;
 }
 
-void SimpleSerial::_exit_mode(const char *mode) {
+void SimpleSerial::_send_confirmation() {
     digitalWrite(_pin_rts, LOW);
-    ESP_LOGD(TAG, "Exited from %s Mode", mode);
+    delay(10);
+    digitalWrite(_pin_rts, HIGH);
+    ESP_LOGD(TAG, "Sent confirmation pulse!");
+}
+
+bool SimpleSerial::_is_confirmed() {
+    ESP_LOGW(TAG, "Awaiting confirmation for echoed command...");
+
+    _timeout.start();
+    while (!_timeout.isExpired()) {
+        if (digitalRead(_pin_cts) == LOW) {
+            ESP_LOGD(TAG, "Echoed command has been confirmed!");
+            return true;
+        }
+
+        delay(1); // To avoid flooding the CPU
+    }
+
+    ESP_LOGW(TAG, "Timeout, sender did not confirm echoed command!");
+    return false;
+}
+
+// -------------------------------------- SENDER METHODS -----------------------------------------------------
+
+bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
+    if (xQueueReceive(_queue_cmds_out, (void *)&cmd, (TickType_t)10) == pdTRUE) {
+        ESP_LOGI(TAG, "New command to be sent: 0x%x", cmd);
+        return true;
+    }
+
+    return false;
 }
 
 bool SimpleSerial::_request_to_send() {
@@ -179,6 +200,17 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
     return false;
 }
 
+// -------------------------------------- RECEIVER METHODS -----------------------------------------------------
+
+bool SimpleSerial::_is_cmd_to_receive() {
+    if (digitalRead(_pin_cts) == HIGH) {
+        ESP_LOGI(TAG, "Received a new sender request!");
+        return true;
+    }
+
+    return false;
+}
+
 void SimpleSerial::_accept_request() {
     digitalWrite(_pin_rts, HIGH);
     ESP_LOGD(TAG, "Request accepted!");
@@ -207,23 +239,6 @@ void SimpleSerial::_echo_back_cmd(const Command cmd) {
     ESP_LOGD(TAG, "Echoed back command: %x", cmd);
 }
 
-bool SimpleSerial::_is_received_confirmed(const Command cmd) {
-    ESP_LOGW(TAG, "Awaiting confirmation for echoed command...");
-
-    _timeout.start();
-    while (!_timeout.isExpired()) {
-        if (digitalRead(_pin_cts) == LOW) {
-            ESP_LOGD(TAG, "Echoed command has been confirmed!");
-            return true;
-        }
-
-        delay(1); // To avoid flooding the CPU
-    }
-
-    ESP_LOGW(TAG, "Timeout, sender did not confirm echoed command!");
-    return false;
-}
-
 // Will not retry if it fails, that's the sender's job
 bool SimpleSerial::_is_receival_success() {
     Command cmd;
@@ -240,16 +255,16 @@ bool SimpleSerial::_is_receival_success() {
         _echo_back_cmd(cmd);
 
         // Check if the sender confirms the received command
-        if (_is_received_confirmed(cmd)) {
+        if (_is_confirmed()) {
 
             // Exit receiver mode
             _exit_mode("Receiver");
 
             // Wait until sender exits as well (for sync)
-            _is_peer_exit("Sender");
-
-            ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
-            return true;
+            if (_is_peer_exit("Sender")) {
+                ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
+                return true;
+            }
         }
     }
 
@@ -262,6 +277,8 @@ bool SimpleSerial::_is_receival_success() {
     ESP_LOGE(TAG, "Receiver protocol failed!\n");
     return false;
 }
+
+// -------------------------------------- MAIN TASK -----------------------------------------------------
 
 void SimpleSerial::_task_main(void *pvParameters) {
     SimpleSerial *self = (SimpleSerial *)pvParameters; // Cast pvParameters to SimpleSerial pointer
