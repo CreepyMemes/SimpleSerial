@@ -228,8 +228,13 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
 
 bool SimpleSerial::_is_received_confirmed(const Command cmd) {
 
-    // TEMPORARY, INSERTING BUG
-    Command cmd_wrong = CMD_WRONG;
+    // TEMPORARY, INSERTING CONFIRMATION BUG, 50% to get wrong
+    Command cmd_wrong = cmd;
+
+    if (random(2)) {
+        cmd_wrong = CMD_WRONG;
+    }
+
     _serial->write((uint8_t *)&cmd_wrong, sizeof(cmd_wrong));
     ESP_LOGD(TAG, "Command echoed back for confirmation");
 
