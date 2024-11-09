@@ -201,6 +201,7 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
     return false;
 }
 
+// Todo: this is basically is_peer_exit()
 bool SimpleSerial::_is_received_confirmed(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
     ESP_LOGD(TAG, "Command echoed back, awaiting confirmation..");
@@ -239,21 +240,26 @@ bool SimpleSerial::_is_receival_success() {
         // Check if the sender confirms the received command
         if (_is_received_confirmed(cmd)) {
 
-            // Exit receiver mode
+            // Exit receiver mode (since the sender confirmation is them exiting)
             _exit_receiver_mode();
 
             ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
             return true;
         }
 
-        // Received command has not been confirmed, wait until sender exits as well then Exit receiver mode
-        else if (_is_peer_exit("Sender")) {
+        // Sender did't send a confirmation (or they didn't exit)
+        else {
+            // Exit receiver mode
             _exit_receiver_mode();
-            return false;
+
+            // Wait until sender exits as well
+            if (_is_peer_exit("Sender")) {
+                ESP_LOGE(TAG, "Receiver protocol failed!\n");
+                return false;
+            }
         }
     }
 
-    ESP_LOGE(TAG, "Some shit got really fucked, sender still didn't exit!\n");
     _exit_receiver_mode();
     return false;
 }
@@ -275,10 +281,10 @@ void SimpleSerial::_task_main(void *pvParameters) {
         // Check if there's a request to receive a command sent by the other ESP32
         else if (self->_is_cmd_to_receive()) {
 
-            // If receival fails, just print it for debugging
-            if (!self->_is_receival_success()) {
-                ESP_LOGE(TAG, "Receiver protocol failed!\n");
-            }
+            // // If receival fails, just print it for debugging
+            // if (!self->_is_receival_success()) {
+            //     ESP_LOGE(TAG, "Receiver protocol failed!\n");
+            // }
         }
 
         delay(1); // Give other tasks a chance to run
