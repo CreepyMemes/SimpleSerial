@@ -42,7 +42,6 @@ class SimpleSerial {
 
         bool _is_cmd_to_send(const Command &cmd);
         bool _is_cmd_to_receive();
-        // bool _is_line_available();
 
         bool _request_to_send();
         void _send_command(const Command cmd);
