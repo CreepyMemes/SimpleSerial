@@ -210,10 +210,13 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
     return false;
 }
 
-// Todo: this is basically is_peer_exit()
-bool SimpleSerial::_is_received_confirmed(const Command cmd) {
+void SimpleSerial::_echo_back_cmd(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
-    ESP_LOGD(TAG, "Command echoed back, awaiting confirmation..");
+    ESP_LOGD(TAG, "Echoed back command: %x", cmd);
+}
+
+bool SimpleSerial::_is_received_confirmed(const Command cmd) {
+    ESP_LOGW(TAG, "Awaiting confirmation for echoed command...");
 
     _timeout.start();
     while (!_timeout.isExpired()) {
@@ -241,29 +244,21 @@ bool SimpleSerial::_is_receival_success() {
 
         cmd = CMD_WRONG; // intentional bug
 
+        // Echo back command for confirmation
+        _echo_back_cmd(cmd);
+
         // Check if the sender confirms the received command
         if (_is_received_confirmed(cmd)) {
 
-            // Exit receiver mode (since the sender confirmation is them exiting)
+            // Exit receiver mode
             _exit_mode("Receiver");
+
+            // Wait until sender exits as well (for sync)
+            _is_peer_exit("Sender");
 
             ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
             return true;
         }
-
-        // Sender did't send a confirmation (or they didn't exit)
-        // else {
-        //     // Exit receiver mode
-        //     _exit_mode("Receiver");
-        //     return false;
-        //     // TODO: add logic if sender doesn't exit
-
-        //     // // Wait until sender exits as well
-        //     // if (_is_peer_exit("Sender")) {
-        //     //     ESP_LOGE(TAG, "Receiver protocol failed!\n");
-        //     //     return false;
-        //     // }
-        // }
     }
 
     // Exit receiver mode

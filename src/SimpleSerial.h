@@ -57,6 +57,7 @@ class SimpleSerial {
 
         void _accept_request();
         bool _is_cmd_received(Command &cmd);
+        void _echo_back_cmd(Command cmd);
         bool _is_received_confirmed(const Command cmd);
         bool _is_receival_success();
 
