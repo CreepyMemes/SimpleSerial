@@ -98,6 +98,8 @@ bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
         if (_serial->available()) {
             response = (Command)_serial->read();
 
+            ESP_LOGD(TAG, "Received command response: 0x%x", response);
+
             if (cmd == response) {
                 ESP_LOGD(TAG, "Command sent confirmed!");
                 return true;
