@@ -234,7 +234,7 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
     return false;
 }
 
-bool SimpleSerial::_is_cmd_confirmed(const Command cmd) {
+bool SimpleSerial::_is_received_confirmed(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
     ESP_LOGD(TAG, "Command echoed back for confirmation");
 
@@ -270,7 +270,7 @@ bool SimpleSerial::_is_receival_success() {
     if (_is_cmd_received(cmd)) {
 
         // Check if the received command is correct
-        if (_is_cmd_confirmed(cmd)) {
+        if (_is_received_confirmed(cmd)) {
 
             // Exit receiver mode
             _exit_receiver_mode();

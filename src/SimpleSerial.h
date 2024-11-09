@@ -54,7 +54,7 @@ class SimpleSerial {
 
         void _accept_request();
         bool _is_cmd_received(Command &cmd);
-        bool _is_cmd_confirmed(const Command cmd);
+        bool _is_received_confirmed(const Command cmd);
         void _exit_receiver_mode();
         bool _is_receival_success();
 
