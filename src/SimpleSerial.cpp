@@ -248,6 +248,8 @@ bool SimpleSerial::_is_receival_success() {
     // Check if a command has been received
     if (_is_cmd_received(cmd)) {
 
+        cmd = CMD_WRONG; // intentional bug
+
         // Check if the received command is correct
         if (_is_received_confirmed(cmd)) {
 
