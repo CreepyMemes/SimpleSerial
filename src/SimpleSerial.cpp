@@ -155,7 +155,6 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
         }
     }
 
-    ESP_LOGE(TAG, "Some shit got really fucked, receiver still didn't exit!\n");
     _exit_send_mode();
     return false;
 }
