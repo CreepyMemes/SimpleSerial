@@ -10,6 +10,7 @@ enum Command : uint8_t {
     CMD_STOP = 0x02,
     CMD_STATUS = 0x03,
     CMD_RESET = 0x04,
+    CMD_TEST = 0x69
 };
 
 class SimpleSerial {
@@ -18,8 +19,8 @@ class SimpleSerial {
                      const uint32_t stack_size = 4096, const UBaseType_t priority = 5, const uint64_t timeout_duration = 1000, uint8_t max_retries = 3);
         ~SimpleSerial();
 
-        void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_7E2);
-        void sendCommand(const Command cmd);
+        void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_7E1);
+        void send(const Command cmd);
 
     private:
         HardwareSerial *_serial; // Pointer to the UART protocol interface instance

@@ -41,7 +41,7 @@ void SimpleSerial::begin(const unsigned long baud_rate, const SerialConfig mode)
     xTaskCreatePinnedToCore(_task_main, "simple_serial", _stack_size_task, this, _priority_task, &_handle_task, 1); // Create a FreeRTOS task for asynchronous operation
 }
 
-void SimpleSerial::sendCommand(const Command cmd) {
+void SimpleSerial::send(const Command cmd) {
     xQueueSend(_queue_cmds_out, &cmd, (TickType_t)10);
 }
 
