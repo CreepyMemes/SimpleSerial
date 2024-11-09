@@ -85,7 +85,7 @@ bool SimpleSerial::_is_confirmed() {
 }
 
 bool SimpleSerial::_is_confirmed_reply() {
-    ESP_LOGW(TAG, "Awaiting for sender to confirm receiving our confirmation of their confirmation...");
+    ESP_LOGD(TAG, "Awaiting for sender to confirm receiving our confirmation of their confirmation...");
 
     _timeout.start();
     while (!_timeout.isExpired()) {
