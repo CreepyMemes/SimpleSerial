@@ -193,6 +193,8 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
 
                     // Exit after receiver exits
                     _exit_mode("Sender");
+
+                    ESP_LOGI(TAG, "Sender protocol completed successfully!\n");
                     return true;
                 }
             }
