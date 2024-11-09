@@ -1,14 +1,5 @@
 #include "SimpleSerial.h"
 
-// Temporary, REMOVE LATER
-void halt_program() {
-    ESP_LOGE("simple_serial", "HALTING PROGRAM");
-
-    while (true) {
-        delay(1);
-    }
-}
-
 SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
                            const uint32_t stack_size, const UBaseType_t priority, uint8_t max_retries) :
     _serial(serial),
