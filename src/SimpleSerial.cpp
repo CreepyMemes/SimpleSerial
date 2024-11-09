@@ -97,6 +97,13 @@ bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
     return false;
 }
 
+void SimpleSerial::_send_confirmation() {
+    digitalWrite(_pin_rts, LOW);
+    delay(10);
+    digitalWrite(_pin_rts, HIGH);
+    ESP_LOGD(TAG, "Sent confirmation pulse!");
+}
+
 bool SimpleSerial::_request_to_send() {
     digitalWrite(_pin_rts, HIGH);
     ESP_LOGD(TAG, "Entered Sender Mode, awaiting permission to send...");
@@ -158,25 +165,26 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
         // Check if the command was sent successfully
         if (_is_sent_confirmed(cmd)) {
 
-            // Exit sender mode first (receiver takes this as confirmation successfull)
-            _exit_mode("Sender");
+            // Send confirmation (it's just a pulse of RTS pin to LOW)
+            _send_confirmation();
 
             // Check if the receiver exited as well
             if (_is_peer_exit("Receiver")) {
+
+                // Exit after receiver exits
+                _exit_mode("Sender");
                 return true;
             }
         }
-
-        // Confirmation failed, wait until the receiver exits when it's timeout runs out)
-        else if (_is_peer_exit("Receiver")) {
-
-            // Exit after receiver exits
-            _exit_mode("Sender");
-            return false;
-        }
     }
 
+    // Confirmation failed, wait until the receiver exits
+    _is_peer_exit("Receiver");
+
+    // Exit after receiver exits
     _exit_mode("Sender");
+
+    ESP_LOGE(TAG, "Sender protocol failed!\n");
     return false;
 }
 
