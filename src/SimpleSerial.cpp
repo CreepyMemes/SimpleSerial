@@ -281,10 +281,10 @@ void SimpleSerial::_task_main(void *pvParameters) {
         // Check if there's a request to receive a command sent by the other ESP32
         else if (self->_is_cmd_to_receive()) {
 
-            // // If receival fails, just print it for debugging
-            // if (!self->_is_receival_success()) {
-            //     ESP_LOGE(TAG, "Receiver protocol failed!\n");
-            // }
+            // If receival fails, just print it for debugging
+            if (!self->_is_receival_success()) {
+                // message received successfully do something here
+            }
         }
 
         delay(1); // Give other tasks a chance to run
