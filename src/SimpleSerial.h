@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <SimpleTimeOut.h>
 
-#define SIMPLE_SERIAL_TIMEOUT 500
+#define SIMPLE_SERIAL_TIMEOUT 30
 
 // Define binary commands using an enum
 enum Command : uint8_t {
