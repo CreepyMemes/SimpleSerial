@@ -63,6 +63,7 @@ bool SimpleSerial::_is_peer_exit(const char *peer_role) {
 }
 
 void SimpleSerial::_send_confirmation() {
+    ESP_LOGI(TAG, "Entering Confirmation protocol...");
     digitalWrite(_pin_rts, LOW);
     ESP_LOGD(TAG, "Sent confirmation pulse!");
 }
@@ -85,7 +86,7 @@ bool SimpleSerial::_is_confirmed() {
 }
 
 bool SimpleSerial::_is_confirmed_reply() {
-    ESP_LOGD(TAG, "Awaiting for sender to confirm receiving our confirmation of their confirmation...");
+    ESP_LOGD(TAG, "Awaiting for confirmation reply...");
 
     _timeout.start();
     while (!_timeout.isExpired()) {
@@ -102,6 +103,7 @@ bool SimpleSerial::_is_confirmed_reply() {
 }
 
 void SimpleSerial::_end_confirmation() {
+    ESP_LOGI(TAG, "Confirmation protocol ended");
     digitalWrite(_pin_rts, HIGH);
 }
 
