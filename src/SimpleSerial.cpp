@@ -147,7 +147,7 @@ bool SimpleSerial::_is_echo_correct(const Command cmd) {
     Command response;
 
     _timeout.start();
-    while (!_timeout.isExpired()) {
+    while (!_timeout.isExpired_half()) {
         if (_serial->available()) {
             response = (Command)_serial->read();
 
@@ -281,7 +281,7 @@ bool SimpleSerial::_is_receival_success() {
     // Check if a command has been received
     if (_is_cmd_received(cmd)) {
 
-        // cmd = CMD_WRONG; // intentional bug
+        cmd = CMD_WRONG; // intentional bug
 
         // Echo back command for confirmation
         _send_cmd_echo(cmd);
