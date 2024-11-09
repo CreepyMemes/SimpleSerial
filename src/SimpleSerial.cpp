@@ -173,23 +173,16 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
             }
         }
 
-        // Confirmation failed
-        else {
+        // Confirmation failed, wait until the receiver exits when it's timeout runs out)
+        else if (_is_receiver_exit()) {
 
-            // Wwait until the receiver exits when it's timeout runs out)
-            if (_is_receiver_exit()) {
-
-                // Exit after receiver exits
-                _exit_send_mode();
-
-            } else {
-                // Receiver didn't exit, something must be fucked up...
-                halt_program(); // TEMPORARY
-            }
+            // Exit after receiver exits
+            _exit_send_mode();
+            return false;
         }
     }
 
-    // _exit_send_mode();
+    _exit_send_mode();
     return false;
 }
 
@@ -207,7 +200,6 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
         }
     }
 
-    ESP_LOGE(TAG, "Failed to send message after %d attempts\n", _max_retries);
     return false;
 }
 
@@ -299,7 +291,7 @@ void SimpleSerial::_task_main(void *pvParameters) {
 
             // If sending fails, halt program execution (FOR NOW, TO REMOVE LATER)
             if (!self->_sender_retry(cmd)) {
-                halt_program();
+                ESP_LOGE(TAG, "Sender protocol failed, after %d attempts!\n", self->_max_retries);
             }
         }
         // Check if there's a request to receive a command sent by the other ESP32
