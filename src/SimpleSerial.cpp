@@ -64,26 +64,45 @@ bool SimpleSerial::_is_peer_exit(const char *peer_role) {
 
 void SimpleSerial::_send_confirmation() {
     digitalWrite(_pin_rts, LOW);
-    delay(10);
-    digitalWrite(_pin_rts, HIGH);
     ESP_LOGD(TAG, "Sent confirmation pulse!");
 }
 
 bool SimpleSerial::_is_confirmed() {
-    ESP_LOGW(TAG, "Awaiting confirmation for echoed command...");
+    ESP_LOGW(TAG, "Awaiting for confirmation...");
 
     _timeout.start();
     while (!_timeout.isExpired()) {
         if (digitalRead(_pin_cts) == LOW) {
-            ESP_LOGD(TAG, "Echoed command has been confirmed!");
+            ESP_LOGD(TAG, "Confirmation Received!");
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, sender did not confirm echoed command!");
+    ESP_LOGW(TAG, "Timeout, didn't receive any confirmation reply!");
     return false;
+}
+
+bool SimpleSerial::_is_confirmed_reply() {
+    ESP_LOGW(TAG, "Awaiting for sender to confirm receiving our confirmation of their confirmation...");
+
+    _timeout.start();
+    while (!_timeout.isExpired()) {
+        if (digitalRead(_pin_cts) == HIGH) {
+            ESP_LOGD(TAG, "Confirmation received!");
+            return true;
+        }
+
+        delay(1); // To avoid flooding the CPU
+    }
+
+    ESP_LOGW(TAG, "Timeout, didn't receive any confirmation reply!");
+    return false;
+}
+
+void SimpleSerial::_end_confirmation() {
+    digitalWrite(_pin_rts, HIGH);
 }
 
 // -------------------------------------- SENDER METHODS -----------------------------------------------------
@@ -95,13 +114,6 @@ bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
     }
 
     return false;
-}
-
-void SimpleSerial::_send_confirmation() {
-    digitalWrite(_pin_rts, LOW);
-    delay(10);
-    digitalWrite(_pin_rts, HIGH);
-    ESP_LOGD(TAG, "Sent confirmation pulse!");
 }
 
 bool SimpleSerial::_request_to_send() {
@@ -128,7 +140,7 @@ void SimpleSerial::_send_command(const Command cmd) {
     ESP_LOGD(TAG, "Attempted to send command");
 }
 
-bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
+bool SimpleSerial::_is_echo_correct(const Command cmd) {
 
     ESP_LOGD(TAG, "Awaiting command receival confirmation...");
     Command response;
@@ -163,22 +175,32 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
         _send_command(cmd);
 
         // Check if the command was sent successfully
-        if (_is_sent_confirmed(cmd)) {
+        if (_is_echo_correct(cmd)) {
 
-            // Send confirmation (it's just a pulse of RTS pin to LOW)
+            // Send confirmation by just setting RTS pin to LOW
             _send_confirmation();
 
-            // Check if the receiver exited as well
-            if (_is_peer_exit("Receiver")) {
+            // Check if the sent confirmation has been received
+            if (_is_confirmed()) {
 
-                // Exit after receiver exits
-                _exit_mode("Sender");
-                return true;
+                // End confirmation protocol by just setting RTS pin back to HIGH
+                _end_confirmation();
+
+                // Check if the receiver exited
+                if (_is_peer_exit("Receiver")) {
+
+                    // Exit after receiver exits
+                    _exit_mode("Sender");
+                    return true;
+                }
             }
         }
     }
 
-    // Confirmation failed, wait until the receiver exits
+    // End confirmation as it went wrong
+    _end_confirmation();
+
+    // Now wait until the receiver exits for sync
     _is_peer_exit("Receiver");
 
     // Exit after receiver exits
@@ -242,7 +264,7 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
     return false;
 }
 
-void SimpleSerial::_echo_back_cmd(const Command cmd) {
+void SimpleSerial::_send_cmd_echo(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
     ESP_LOGD(TAG, "Echoed back command: %x", cmd);
 }
@@ -260,21 +282,34 @@ bool SimpleSerial::_is_receival_success() {
         cmd = CMD_WRONG; // intentional bug
 
         // Echo back command for confirmation
-        _echo_back_cmd(cmd);
+        _send_cmd_echo(cmd);
 
-        // Check if the sender confirms the received command
+        // Check if the sender confirms the echoed command being correct
         if (_is_confirmed()) {
 
-            // Exit receiver mode
-            _exit_mode("Receiver");
+            // Send confirmation that sender's confirmation was received
+            _send_confirmation();
 
-            // Wait until sender exits as well (for sync)
-            if (_is_peer_exit("Sender")) {
-                ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
-                return true;
+            // Check if the sender received our confirmation of receiving their confirmation o.O?
+            if (_is_confirmed_reply()) {
+
+                // End confirmation protocol by just setting RTS pin back to HIGH
+                _end_confirmation();
+
+                // Exit receiver mode
+                _exit_mode("Receiver");
+
+                // Wait until sender exits as well (for sync)
+                if (_is_peer_exit("Sender")) {
+                    ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
+                    return true;
+                }
             }
         }
     }
+
+    // Confirmation failed just end it
+    _end_confirmation();
 
     // Exit receiver mode
     _exit_mode("Receiver");
