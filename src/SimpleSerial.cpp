@@ -117,17 +117,17 @@ bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
             response = (Command)_serial->read();
 
             if (cmd == response) {
-                ESP_LOGD(TAG, "Command confirmed!");
+                ESP_LOGD(TAG, "Command sent confirmed!");
                 return true;
             } else {
-                ESP_LOGW(TAG, "Confirmation failed!");
+                ESP_LOGW(TAG, "Command sent confirmation failed!");
                 return false;
             }
         }
         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, received no command, confirmation failed!");
+    ESP_LOGW(TAG, "Timeout, sent command got no confirmation!");
     return false;
 }
 
