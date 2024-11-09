@@ -242,19 +242,22 @@ bool SimpleSerial::_is_receival_success() {
         }
 
         // Sender did't send a confirmation (or they didn't exit)
-        else {
-            // Exit receiver mode
-            _exit_mode("Receiver");
+        // else {
+        //     // Exit receiver mode
+        //     _exit_mode("Receiver");
+        //     return false;
+        //     // TODO: add logic if sender doesn't exit
 
-            // Wait until sender exits as well
-            if (_is_peer_exit("Sender")) {
-                ESP_LOGE(TAG, "Receiver protocol failed!\n");
-                return false;
-            }
-        }
+        //     // // Wait until sender exits as well
+        //     // if (_is_peer_exit("Sender")) {
+        //     //     ESP_LOGE(TAG, "Receiver protocol failed!\n");
+        //     //     return false;
+        //     // }
+        // }
     }
 
     _exit_mode("Receiver");
+    ESP_LOGE(TAG, "Receiver protocol failed!\n");
     return false;
 }
 
