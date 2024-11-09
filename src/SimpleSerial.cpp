@@ -65,14 +65,13 @@ bool SimpleSerial::_is_cmd_to_receive() {
 
 bool SimpleSerial::_request_to_send() {
     digitalWrite(_pin_rts, HIGH);
-    ESP_LOGD(TAG, "Requested to send");
+    ESP_LOGD(TAG, "Entered Sender Mode, awaiting permission to send...");
 
-    ESP_LOGD(TAG, "Awaiting permission to send...");
     _timeout.start();
     while (!_timeout.isExpired()) {
 
         if (digitalRead(_pin_cts) == HIGH) {
-            ESP_LOGD(TAG, "Permission granted, entered Sender Mode!");
+            ESP_LOGD(TAG, "Permission to send granted!");
             return true;
         }
 
@@ -90,7 +89,7 @@ void SimpleSerial::_send_command(const Command cmd) {
 
 bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
 
-    ESP_LOGD(TAG, "Awaiting receival confirmation...");
+    ESP_LOGD(TAG, "Awaiting command receival confirmation...");
     Command response;
 
     _timeout.start();
@@ -101,10 +100,10 @@ bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
             ESP_LOGD(TAG, "Received command response: 0x%x", response);
 
             if (cmd == response) {
-                ESP_LOGD(TAG, "Command sent confirmed!");
+                ESP_LOGD(TAG, "Sent command has been confirmed!");
                 return true;
             } else {
-                ESP_LOGW(TAG, "Command sent confirmation failed!");
+                ESP_LOGW(TAG, "Sent Command failed confirmation!");
                 return false;
             }
         }
@@ -112,7 +111,7 @@ bool SimpleSerial::_is_sent_confirmed(const Command cmd) {
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, sent command got no confirmation!");
+    ESP_LOGW(TAG, "Timeout, sent command has not received confirmation!");
     return false;
 }
 
@@ -167,6 +166,7 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
         }
     }
 
+    ESP_LOGE(TAG, "Some shit got really fucked, receiver still didn't exit!\n");
     _exit_send_mode();
     return false;
 }
@@ -214,9 +214,7 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
 
 bool SimpleSerial::_is_received_confirmed(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
-    ESP_LOGD(TAG, "Command echoed back for confirmation");
-
-    ESP_LOGD(TAG, "Awaiting received command confirmation...");
+    ESP_LOGD(TAG, "Command echoed back, awaiting confirmation..");
 
     _timeout.start();
     while (!_timeout.isExpired_half()) {
