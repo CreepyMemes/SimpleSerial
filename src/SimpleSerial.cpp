@@ -281,7 +281,7 @@ void SimpleSerial::_task_main(void *pvParameters) {
         else if (self->_is_cmd_to_receive()) {
 
             // If receival fails, just print it for debugging
-            if (!self->_is_receival_success()) {
+            if (self->_is_receival_success()) {
                 // message received successfully do something here
             }
         }
