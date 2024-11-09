@@ -18,7 +18,7 @@ enum Command : uint8_t {
 class SimpleSerial {
     public:
         SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
-                     const uint32_t stack_size = 4096, const UBaseType_t priority = 5, const uint64_t timeout_duration = 3000, uint8_t max_retries = 3);
+                     const uint32_t stack_size = 4096, const UBaseType_t priority = 5, const uint64_t timeout_duration = 1000, uint8_t max_retries = 3);
         ~SimpleSerial();
 
         void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_7E1);
