@@ -14,6 +14,7 @@ enum Command : uint8_t {
     CMD_WRONG = 0x45
 };
 
+// TODO: add a way to tell the user that the sender mode is busy, use queue or some shit
 class SimpleSerial {
     public:
         SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
