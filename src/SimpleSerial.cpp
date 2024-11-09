@@ -246,16 +246,10 @@ bool SimpleSerial::_is_receival_success() {
             return true;
         }
 
-        // Received command has not been confirmed
-        else {
-
-            // Exit receiver mode
+        // Received command has not been confirmed, wait until sender exits as well then Exit receiver mode
+        else if (_is_peer_exit("Sender")) {
             _exit_receiver_mode();
-
-            // Wait until sender exits as well
-            if (_is_peer_exit("Sender")) {
-                return false;
-            }
+            return false;
         }
     }
 
