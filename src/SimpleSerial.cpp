@@ -235,22 +235,26 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
 }
 
 bool SimpleSerial::_is_received_confirmed(const Command cmd) {
-    _serial->write((uint8_t *)&cmd, sizeof(cmd));
+
+    // TEMPORARY, INSERTING BUG
+    Command cmd_wrong = CMD_WRONG;
+    _serial->write((uint8_t *)&cmd_wrong, sizeof(cmd_wrong));
     ESP_LOGD(TAG, "Command echoed back for confirmation");
 
-    ESP_LOGD(TAG, "Awaiting Confirmation...");
+    ESP_LOGD(TAG, "Awaiting received command confirmation...");
+
     _timeout.start();
-    while (!_timeout.isExpired()) {
+    while (!_timeout.isExpired_half()) {
         if (digitalRead(_pin_cts) == LOW) {
 
-            ESP_LOGD(TAG, "Command Confirmed!");
+            ESP_LOGD(TAG, "Command received Confirmed!");
             return true;
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, command not confirmed!");
+    ESP_LOGW(TAG, "Timeout, command received not confirmed!");
     return false;
 }
 
