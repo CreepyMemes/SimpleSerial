@@ -10,7 +10,7 @@ void halt_program() {
 }
 
 SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
-                           const uint32_t stack_size, const UBaseType_t priority, const uint64_t timeout_duration, uint8_t max_retries) :
+                           const uint32_t stack_size, const UBaseType_t priority, uint8_t max_retries) :
     _serial(serial),
     _pin_rx(rx_pin),
     _pin_tx(tx_pin),
@@ -18,7 +18,7 @@ SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const in
     _pin_rts(rts_pin),
     _stack_size_task(stack_size),
     _priority_task(priority),
-    _timeout(timeout_duration),
+    _timeout(SIMPLE_SERIAL_TIMEOUT),
     _max_retries(max_retries) {
 
     _handle_task = NULL;                                 // Initialize the main task's handle to null
