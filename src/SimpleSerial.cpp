@@ -168,7 +168,6 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
 
             // Check if the receiver exited as well
             if (_is_receiver_exit()) {
-                ESP_LOGI(TAG, "Sender protocol completed successfully!");
                 return true;
             }
         }
@@ -192,6 +191,7 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
     for (int attempt = 0; attempt < _max_retries; attempt++) {
 
         if (_is_sender_success(cmd)) {
+            ESP_LOGI(TAG, "Sender protocol completed successfully after %d attempts!\n", attempt + 1);
             return true;
         }
 
