@@ -281,8 +281,6 @@ bool SimpleSerial::_is_receival_success() {
     // Check if a command has been received
     if (_is_cmd_received(cmd)) {
 
-        cmd = CMD_WRONG; // intentional bug
-
         // Echo back command for confirmation
         _send_cmd_echo(cmd);
 
