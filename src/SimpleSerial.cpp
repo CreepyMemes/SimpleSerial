@@ -47,7 +47,7 @@ void SimpleSerial::send(const Command cmd) {
 
 bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
     if (xQueueReceive(_queue_cmds_out, (void *)&cmd, (TickType_t)10) == pdTRUE) {
-        ESP_LOGD(TAG, "New command to be sent: %d", cmd);
+        ESP_LOGI(TAG, "New command to be sent: 0x%x", cmd);
         return true;
     }
 
@@ -63,31 +63,46 @@ bool SimpleSerial::_is_cmd_to_receive() {
     return false;
 }
 
-bool SimpleSerial::_request_to_send() {
-
-    if (digitalRead(_pin_cts) == HIGH) {
-        ESP_LOGE(TAG, "Error CTS pin is HIGH!");
-        return false;
-    }
-
-    ESP_LOGD(TAG, "Requesting to send...");
-
-    digitalWrite(_pin_rts, HIGH);
-
-    ESP_LOGD(TAG, "Awaiting request acknowledgment...");
+bool SimpleSerial::_is_line_available() {
+    ESP_LOGD(TAG, "Waiting for line availability...");
 
     _timeout.start();
     while (!_timeout.isExpired()) {
 
-        if (digitalRead(_pin_cts) == HIGH) {
-            ESP_LOGD(TAG, "Request successful, entered Sender Mode!");
+        if (digitalRead(_pin_cts) == LOW) {
+            ESP_LOGD(TAG, "Line available, proceeding...");
             return true;
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
     }
 
-    ESP_LOGE(TAG, "Timeout, request failed!");
+    ESP_LOGW(TAG, "Timeout, line still not available (CTS PIN still HIGH)");
+    return false;
+}
+
+bool SimpleSerial::_request_to_send() {
+
+    if (!_is_line_available()) {
+        return false;
+    }
+
+    digitalWrite(_pin_rts, HIGH);
+    ESP_LOGD(TAG, "Requested to send");
+
+    ESP_LOGD(TAG, "Awaiting permission to send...");
+    _timeout.start();
+    while (!_timeout.isExpired()) {
+
+        if (digitalRead(_pin_cts) == HIGH) {
+            ESP_LOGD(TAG, "Permission granted, entered Sender Mode!");
+            return true;
+        }
+
+        vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
+    }
+
+    ESP_LOGW(TAG, "Timeout, request failed!");
     return false;
 }
 
@@ -107,14 +122,14 @@ bool SimpleSerial::_is_cmd_sent(const Command cmd) {
                 ESP_LOGD(TAG, "Command Sent Successfully!");
                 return true;
             } else {
-                ESP_LOGE(TAG, "Received wrong command, confirmation failed!");
+                ESP_LOGW(TAG, "Received wrong command, confirmation failed!");
                 return false;
             }
         }
         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
     }
 
-    ESP_LOGE(TAG, "Timeout, confirmation failed!");
+    ESP_LOGW(TAG, "Timeout, confirmation failed!");
     return false;
 }
 
@@ -135,7 +150,7 @@ bool SimpleSerial::_is_send_mode_done() {
         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
     }
 
-    ESP_LOGE(TAG, "Timeout, Receiver didn't exit!");
+    ESP_LOGW(TAG, "Timeout, Receiver didn't exit!");
     return false;
 }
 
@@ -172,42 +187,43 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
             return true;
         }
 
-        ESP_LOGD(TAG, "Retrying...");
+        if (attempt != _max_retries - 1) {
+            ESP_LOGI(TAG, "Retrying to send...\n");
+        }
     }
 
-    ESP_LOGE(TAG, "Failed to send message after %d attempts", _max_retries);
+    ESP_LOGE(TAG, "Failed to send message after %d attempts\n", _max_retries);
     return false;
 }
 
 void SimpleSerial::_accept_request() {
     digitalWrite(_pin_rts, HIGH);
-    ESP_LOGD(TAG, "Accepted request!");
+    ESP_LOGD(TAG, "Request accepted!");
 }
 
 bool SimpleSerial::_is_cmd_received(Command &cmd) {
-    ESP_LOGD(TAG, "Ready to receive...");
+    ESP_LOGD(TAG, "Ready to receive, waiting for command...");
 
     _timeout.start();
     while (!_timeout.isExpired()) {
-        if (_serial->available()) {
+        if (_serial->available() > 0) {
             cmd = (Command)_serial->read();
-            ESP_LOGD(TAG, "Received command: %x", cmd);
+            ESP_LOGD(TAG, "Received command: 0x%x", cmd);
             return true;
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
     }
 
-    ESP_LOGE(TAG, "Timeout, didn't receive any command!");
+    ESP_LOGW(TAG, "Timeout, didn't receive any command!");
     return false;
 }
 
 bool SimpleSerial::_is_cmd_confirmed(const Command cmd) {
-    ESP_LOGD(TAG, "Resending command for confirmation...");
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
+    ESP_LOGD(TAG, "Command echoed back for confirmation");
 
     ESP_LOGD(TAG, "Awaiting Confirmation...");
-
     _timeout.start();
     while (!_timeout.isExpired()) {
         if (digitalRead(_pin_cts) == LOW) {
@@ -219,7 +235,7 @@ bool SimpleSerial::_is_cmd_confirmed(const Command cmd) {
         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
     }
 
-    ESP_LOGE(TAG, "Timeout, command not confirmed!");
+    ESP_LOGW(TAG, "Timeout, command not confirmed!");
     return false;
 }
 
@@ -230,7 +246,6 @@ void SimpleSerial::_exit_receiver_mode() {
 
 // Will not retry if it fails, that's the sender's job
 bool SimpleSerial::_is_receival_success() {
-
     Command cmd;
 
     // Accept the sender request by the other ESP32, by setting RTS pin HIGH
@@ -270,10 +285,13 @@ void SimpleSerial::_task_main(void *pvParameters) {
         }
         // Check if there's a request to receive a command sent by the other ESP32
         else if (self->_is_cmd_to_receive()) {
+
+            // If receival fails, just print it for debugging
             if (!self->_is_receival_success()) {
-                halt_program();
+                ESP_LOGE(TAG, "Receiver protocol failed!\n");
             }
         }
+
         vTaskDelay(10 / portTICK_PERIOD_MS); // Give other tasks a chance to run
     }
 }
