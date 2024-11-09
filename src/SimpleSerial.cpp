@@ -63,7 +63,6 @@ bool SimpleSerial::_is_peer_exit(const char *peer_role) {
 }
 
 void SimpleSerial::_send_confirmation() {
-    ESP_LOGI(TAG, "Entering Confirmation protocol...");
     digitalWrite(_pin_rts, LOW);
     ESP_LOGD(TAG, "Sent confirmation pulse!");
 }
@@ -103,7 +102,7 @@ bool SimpleSerial::_is_confirmed_reply() {
 }
 
 void SimpleSerial::_end_confirmation() {
-    ESP_LOGI(TAG, "Confirmation protocol ended");
+    ESP_LOGD(TAG, "Confirmation protocol ended");
     digitalWrite(_pin_rts, HIGH);
 }
 
@@ -218,12 +217,11 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
     for (int attempt = 0; attempt < _max_retries; attempt++) {
 
         if (_is_sender_success(cmd)) {
-            ESP_LOGI(TAG, "Sender protocol completed successfully after %d attempts!\n", attempt + 1);
             return true;
         }
 
         if (attempt != _max_retries - 1) {
-            ESP_LOGW(TAG, "Retrying to send...\n");
+            ESP_LOGW(TAG, "Attempt: %d, Retrying to send...\n", attempt + 1);
         }
 
         delay(1); // To avoid flooding the CPU
@@ -335,8 +333,8 @@ void SimpleSerial::_task_main(void *pvParameters) {
         if (self->_is_cmd_to_send(cmd)) {
 
             // If sending fails, halt program execution (FOR NOW, TO REMOVE LATER)
-            if (!self->_sender_retry(cmd)) {
-                ESP_LOGE(TAG, "Sender protocol failed after %d attempts!\n", self->_max_retries);
+            if (self->_sender_retry(cmd)) {
+                // Command sent successfully logic here
             }
         }
         // Check if there's a request to receive a command sent by the other ESP32
@@ -344,7 +342,7 @@ void SimpleSerial::_task_main(void *pvParameters) {
 
             // If receival fails, just print it for debugging
             if (self->_is_receival_success()) {
-                // message received successfully do something here
+                // message received successfully logic here
             }
         }
 
