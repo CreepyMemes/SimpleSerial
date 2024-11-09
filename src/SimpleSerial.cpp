@@ -107,10 +107,10 @@ bool SimpleSerial::_request_to_send() {
 }
 
 bool SimpleSerial::_is_cmd_sent(const Command cmd) {
-    ESP_LOGD(TAG, "Attempting to send...");
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
+    ESP_LOGD(TAG, "Attempted to send command");
 
-    ESP_LOGD(TAG, "Command sent, now awaiting confirmation...");
+    ESP_LOGD(TAG, "Awaiting receival confirmation...");
     Command response;
 
     _timeout.start();
@@ -119,10 +119,10 @@ bool SimpleSerial::_is_cmd_sent(const Command cmd) {
             response = (Command)_serial->read();
 
             if (cmd == response) {
-                ESP_LOGD(TAG, "Command Sent Successfully!");
+                ESP_LOGD(TAG, "Command confirmed!");
                 return true;
             } else {
-                ESP_LOGW(TAG, "Received wrong command, confirmation failed!");
+                ESP_LOGW(TAG, "Confirmation failed!");
                 return false;
             }
         }
@@ -144,7 +144,6 @@ bool SimpleSerial::_is_send_mode_done() {
     _timeout.start();
     while (!_timeout.isExpired()) {
         if (digitalRead(_pin_cts) == LOW) {
-            ESP_LOGD(TAG, "Sending Protocol completed successfully!");
             return true;
         }
         vTaskDelay(10 / portTICK_PERIOD_MS); // To avoid flooding the CPU
@@ -168,7 +167,7 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
             // Check if the receiver exited as well
             if (_is_send_mode_done()) {
 
-                ESP_LOGD(TAG, "Sender protocol completed successfully!");
+                ESP_LOGI(TAG, "Sender protocol completed successfully!");
                 return true;
             }
         }
@@ -260,7 +259,7 @@ bool SimpleSerial::_is_receival_success() {
             // Exit receiver mode
             _exit_receiver_mode();
 
-            ESP_LOGD(TAG, "Receiver protocol completed successfully!");
+            ESP_LOGI(TAG, "Receiver protocol completed successfully!");
             return true;
         }
     }
