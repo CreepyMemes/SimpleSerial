@@ -210,10 +210,10 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
 
 bool SimpleSerial::_is_received_confirmed(const Command cmd) {
 
-    // TEMPORARY, INSERTING CONFIRMATION BUG, 50% to get wrong
+    // TEMPORARY, INSERTING CONFIRMATION BUG, 25% to get it right
     Command cmd_wrong = cmd;
 
-    if (random(2)) {
+    if (random(4) != 0) { // 0 1 2 3
         cmd_wrong = CMD_WRONG;
     }
 
