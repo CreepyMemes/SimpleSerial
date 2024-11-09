@@ -10,7 +10,8 @@ enum Command : uint8_t {
     CMD_STOP = 0x02,
     CMD_STATUS = 0x03,
     CMD_RESET = 0x04,
-    CMD_TEST = 0x69
+    CMD_TEST = 0x69,
+    CMD_WRONG = 0x45
 };
 
 class SimpleSerial {
