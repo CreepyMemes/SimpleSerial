@@ -88,7 +88,7 @@ bool SimpleSerial::_is_confirmed() {
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Failed! Timeout, did not receive any confirmation!");
+    ESP_LOGW(TAG, "Timeout! did not receive any confirmation!");
     return false;
 }
 
@@ -105,7 +105,7 @@ bool SimpleSerial::_is_confirmed_ack() {
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Failed! Timeout, did not receive any confirmation acknowledgement!");
+    ESP_LOGW(TAG, "Timeout! did not receive any confirmation acknowledgement!");
     return false;
 }
 
@@ -231,7 +231,7 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
         }
 
         if (attempt != _max_retries - 1) {
-            ESP_LOGW(TAG, "Attempt: %d, Retrying to send...", attempt + 2);
+            ESP_LOGI(TAG, "Attempt: %d, Retrying to send...", attempt + 2);
         }
 
         delay(1); // To avoid flooding the CPU
