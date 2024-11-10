@@ -327,7 +327,6 @@ bool SimpleSerial::_is_receival_success(Command &cmd) {
     return false;
 }
 
-// TODO ADD RETURN COMMAND OR CHANGE ITS REFERENCE
 bool SimpleSerial::_receiver_retry(Command &cmd) {
 
     // Take count of the receiving attempts if they fail
