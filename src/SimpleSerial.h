@@ -59,7 +59,7 @@ class SimpleSerial {
                      const uint32_t stack_size = 4096, const UBaseType_t priority = 5, uint8_t max_retries = 3);
         ~SimpleSerial();
 
-        void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_7E1);
+        void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_8N1);
         void send(const Command cmd);
 
     private:
