@@ -62,8 +62,8 @@ class SimpleSerial {
         void _accept_request();
         bool _is_cmd_received(Command &cmd);
         void _send_cmd_echo(Command cmd);
-        bool _is_receival_success();
-        bool _receiver_retry();
+        bool _is_receival_success(Command &cmd);
+        bool _receiver_retry(Command &cmd);
 
         static void _task_main(void *pvParameters);
 

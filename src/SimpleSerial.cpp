@@ -280,8 +280,7 @@ void SimpleSerial::_send_cmd_echo(const Command cmd) {
 }
 
 // Will not retry if it fails, that's the sender's job
-bool SimpleSerial::_is_receival_success() {
-    Command cmd;
+bool SimpleSerial::_is_receival_success(Command &cmd) {
 
     // Accept the sender request by the other ESP32, by setting RTS pin HIGH
     _accept_request();
@@ -330,12 +329,12 @@ bool SimpleSerial::_is_receival_success() {
 }
 
 // TODO ADD RETURN COMMAND OR CHANGE ITS REFERENCE
-bool SimpleSerial::_receiver_retry() {
+bool SimpleSerial::_receiver_retry(Command &cmd) {
 
     // Take count of the receiving attempts if they fail
     for (int attempt = 0; attempt < _max_retries; attempt++) {
 
-        if (_is_receival_success()) {
+        if (_is_receival_success(cmd)) {
             return true;
         }
 
@@ -369,8 +368,12 @@ void SimpleSerial::_task_main(void *pvParameters) {
         else if (self->_is_cmd_to_receive()) {
 
             // If receival fails, take count of the attempts (max_retries must be same)
-            if (self->_receiver_retry()) {
-                // message received successfully logic here
+            if (self->_receiver_retry(cmd)) {
+
+                // Command received successfully logic here
+                Serial.print("Executing command: 0x");
+                Serial.print(cmd, HEX);
+                Serial.println();
             }
         }
 
