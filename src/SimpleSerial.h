@@ -48,7 +48,7 @@ class SimpleSerial {
         bool _is_peer_exit(const char *peer_role);
         void _send_confirmation();
         bool _is_confirmed();
-        bool _is_confirmed_reply();
+        bool _is_confirmed_ack();
         void _end_confirmation();
 
         bool _is_cmd_to_send(const Command &cmd);

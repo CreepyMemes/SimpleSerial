@@ -72,7 +72,7 @@ bool SimpleSerial::_is_peer_exit(const char *peer_role) {
 
 void SimpleSerial::_send_confirmation() {
     digitalWrite(_pin_rts, LOW);
-    ESP_LOGD(TAG, "Sent confirmation pulse!");
+    ESP_LOGD(TAG, "Sent confirmation!");
 }
 
 bool SimpleSerial::_is_confirmed() {
@@ -81,31 +81,31 @@ bool SimpleSerial::_is_confirmed() {
     _start_timeout();
     while (!_is_timeout()) {
         if (digitalRead(_pin_cts) == LOW) {
-            ESP_LOGD(TAG, "Confirmation Received!");
+            ESP_LOGD(TAG, "Success! Confirmation Received!");
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, didn't receive any confirmation!");
+    ESP_LOGW(TAG, "Failed! Timeout, did not receive any confirmation!");
     return false;
 }
 
-bool SimpleSerial::_is_confirmed_reply() {
-    ESP_LOGD(TAG, "Awaiting for confirmation reply...");
+bool SimpleSerial::_is_confirmed_ack() {
+    ESP_LOGD(TAG, "Awaiting for confirmation acknowledgement...");
 
     _start_timeout();
     while (!_is_timeout()) {
         if (digitalRead(_pin_cts) == HIGH) {
-            ESP_LOGD(TAG, "Confirmation received!");
+            ESP_LOGD(TAG, "Success!, Confirmation acknowledgement received!");
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, didn't receive any confirmation reply!");
+    ESP_LOGW(TAG, "Failed! Timeout, did not receive any confirmation acknowledgement!");
     return false;
 }
 
@@ -133,25 +133,25 @@ bool SimpleSerial::_request_to_send() {
     while (!_is_timeout()) {
 
         if (digitalRead(_pin_cts) == HIGH) {
-            ESP_LOGD(TAG, "Permission to send granted!");
+            ESP_LOGD(TAG, "Successful request! received permission to send!");
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, request failed!");
+    ESP_LOGW(TAG, "Failed request! Timeout, did not receive permission to send!");
     return false;
 }
 
 void SimpleSerial::_send_command(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
-    ESP_LOGD(TAG, "Attempted to send command");
+    ESP_LOGD(TAG, "Attempted to send command: 0x%x", cmd);
 }
 
 bool SimpleSerial::_is_echo_correct(const Command cmd) {
 
-    ESP_LOGD(TAG, "Awaiting command receival confirmation...");
+    ESP_LOGD(TAG, "Awaiting receiver to respond by echoing same command...");
     Command response;
 
     _start_timeout();
@@ -160,10 +160,10 @@ bool SimpleSerial::_is_echo_correct(const Command cmd) {
             response = (Command)_serial->read();
 
             if (cmd == response) {
-                ESP_LOGD(TAG, "Sent command has been confirmed!");
+                ESP_LOGD(TAG, "Command sent successfully! Received correct response: 0x%x", response);
                 return true;
             } else {
-                ESP_LOGD(TAG, "Failed to confirm sent command, received: 0x%x", response);
+                ESP_LOGW(TAG, "Command failed to send! received response 0x%x instead of 0x%x", response, cmd);
                 return false;
             }
         }
@@ -171,7 +171,7 @@ bool SimpleSerial::_is_echo_correct(const Command cmd) {
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, receiver did not send any confirmation!");
+    ESP_LOGW(TAG, "Command failed to send! Timeout, did not receive any response!");
     return false;
 }
 
@@ -276,7 +276,7 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
 
 void SimpleSerial::_send_cmd_echo(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
-    ESP_LOGD(TAG, "Echoed back command: 0x%x", cmd);
+    ESP_LOGD(TAG, "Echoed back same command: 0x%x", cmd);
 }
 
 // Will not retry if it fails, that's the sender's job
@@ -299,7 +299,7 @@ bool SimpleSerial::_is_receival_success() {
             _send_confirmation();
 
             // Check if the sender received our confirmation of receiving their confirmation o.O?
-            if (_is_confirmed_reply()) {
+            if (_is_confirmed_ack()) {
 
                 // End confirmation protocol by just setting RTS pin back to HIGH
                 _end_confirmation();
