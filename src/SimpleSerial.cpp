@@ -195,7 +195,7 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
                 // End confirmation protocol by just setting RTS pin back to HIGH
                 _end_confirmation();
 
-                // Check if the receiver exited
+                // Wait until receiver exits (for sync)
                 if (_is_peer_exit("Receiver")) {
 
                     // Exit after receiver exits
@@ -298,7 +298,7 @@ bool SimpleSerial::_is_receival_success() {
             // Send confirmation that sender's confirmation was received
             _send_confirmation();
 
-            // Check if the sender received our confirmation of receiving their confirmation o.O?
+            // Check if the sender received our confirmation acknowledgement
             if (_is_confirmed_ack()) {
 
                 // End confirmation protocol by just setting RTS pin back to HIGH
