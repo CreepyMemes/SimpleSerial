@@ -50,67 +50,67 @@ bool SimpleSerial::_is_timeout(const uint64_t reduce_factor) {
 
 void SimpleSerial::_exit_mode(const char *mode) {
     digitalWrite(_pin_rts, LOW);
-    ESP_LOGD(TAG, "Exited from %s Mode", mode);
+    LOG_D("Exited from %s Mode", mode);
 }
 
 bool SimpleSerial::_is_peer_exit(const char *peer_role) {
-    ESP_LOGD(TAG, "Awaiting %s to exit...", peer_role);
+    LOG_D("Awaiting %s to exit...", peer_role);
 
     _start_timeout();
     while (!_is_timeout()) {
         if (digitalRead(_pin_cts) == LOW) {
-            ESP_LOGD(TAG, "%s exited!", peer_role);
+            LOG_D("%s exited!", peer_role);
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, %s didn't exit!", peer_role);
+    LOG_W("Timeout, %s didn't exit!", peer_role);
     return false;
 }
 
 void SimpleSerial::_send_confirmation() {
     digitalWrite(_pin_rts, LOW);
-    ESP_LOGD(TAG, "Sent confirmation!");
+    LOG_D("Sent confirmation!");
 }
 
 bool SimpleSerial::_is_confirmed() {
-    ESP_LOGD(TAG, "Awaiting for confirmation...");
+    LOG_D("Awaiting for confirmation...");
 
     _start_timeout();
     while (!_is_timeout()) {
         if (digitalRead(_pin_cts) == LOW) {
-            ESP_LOGD(TAG, "Success! Confirmation Received!");
+            LOG_D("Success! Confirmation Received!");
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout! did not receive any confirmation!");
+    LOG_W("Timeout! did not receive any confirmation!");
     return false;
 }
 
 bool SimpleSerial::_is_confirmed_ack() {
-    ESP_LOGD(TAG, "Awaiting for confirmation acknowledgement...");
+    LOG_D("Awaiting for confirmation acknowledgement...");
 
     _start_timeout();
     while (!_is_timeout()) {
         if (digitalRead(_pin_cts) == HIGH) {
-            ESP_LOGD(TAG, "Success!, Confirmation acknowledgement received!");
+            LOG_D("Success!, Confirmation acknowledgement received!");
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout! did not receive any confirmation acknowledgement!");
+    LOG_W("Timeout! did not receive any confirmation acknowledgement!");
     return false;
 }
 
 void SimpleSerial::_end_confirmation() {
-    ESP_LOGD(TAG, "Confirmation protocol ended");
+    LOG_D("Confirmation protocol ended");
     digitalWrite(_pin_rts, HIGH);
 }
 
@@ -118,7 +118,7 @@ void SimpleSerial::_end_confirmation() {
 
 bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
     if (xQueueReceive(_queue_cmds_out, (void *)&cmd, (TickType_t)10) == pdTRUE) {
-        ESP_LOGI(TAG, "New command to be sent: 0x%x", cmd);
+        LOG_I("New command to be sent: 0x%x", cmd);
         return true;
     }
 
@@ -127,31 +127,31 @@ bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
 
 bool SimpleSerial::_request_to_send() {
     digitalWrite(_pin_rts, HIGH);
-    ESP_LOGD(TAG, "Entered Sender Mode, awaiting permission to send...");
+    LOG_D("Entered Sender Mode, awaiting permission to send...");
 
     _start_timeout();
     while (!_is_timeout()) {
 
         if (digitalRead(_pin_cts) == HIGH) {
-            ESP_LOGD(TAG, "Successful request! received permission to send!");
+            LOG_D("Successful request! received permission to send!");
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Failed request! Timeout, did not receive permission to send!");
+    LOG_W("Failed request! Timeout, did not receive permission to send!");
     return false;
 }
 
 void SimpleSerial::_send_command(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
-    ESP_LOGD(TAG, "Attempted to send command: 0x%x", cmd);
+    LOG_D("Attempted to send command: 0x%x", cmd);
 }
 
 bool SimpleSerial::_is_echo_correct(const Command cmd) {
 
-    ESP_LOGD(TAG, "Awaiting receiver to respond by echoing same command...");
+    LOG_D("Awaiting receiver to respond by echoing same command...");
     Command response;
 
     _start_timeout();
@@ -160,10 +160,10 @@ bool SimpleSerial::_is_echo_correct(const Command cmd) {
             response = (Command)_serial->read();
 
             if (cmd == response) {
-                ESP_LOGD(TAG, "Command sent successfully! Received correct response: 0x%x", response);
+                LOG_D("Command sent successfully! Received correct response: 0x%x", response);
                 return true;
             } else {
-                ESP_LOGW(TAG, "Command failed to send! received response 0x%x instead of 0x%x", response, cmd);
+                LOG_W("Command failed to send! received response 0x%x instead of 0x%x", response, cmd);
                 return false;
             }
         }
@@ -171,7 +171,7 @@ bool SimpleSerial::_is_echo_correct(const Command cmd) {
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Command failed to send! Timeout, did not receive any response!");
+    LOG_W("Command failed to send! Timeout, did not receive any response!");
     return false;
 }
 
@@ -201,7 +201,7 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
                     // Exit after receiver exits
                     _exit_mode("Sender");
 
-                    ESP_LOGI(TAG, "Sender protocol completed successfully!\n");
+                    LOG_I("Sender protocol completed successfully!\n");
                     return true;
                 }
             }
@@ -217,7 +217,7 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
     // Exit after receiver exits
     _exit_mode("Sender");
 
-    ESP_LOGE(TAG, "Sender protocol failed!\n");
+    LOG_E("Sender protocol failed!\n");
     return false;
 }
 
@@ -231,7 +231,7 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
         }
 
         if (attempt != _max_retries - 1) {
-            ESP_LOGI(TAG, "Attempt: %d, Retrying to send...", attempt + 2);
+            LOG_I("Attempt: %d, Retrying to send...", attempt + 2);
         }
 
         delay(1); // To avoid flooding the CPU
@@ -244,7 +244,7 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
 
 bool SimpleSerial::_is_cmd_to_receive() {
     if (digitalRead(_pin_cts) == HIGH) {
-        ESP_LOGI(TAG, "Received a new sender request!");
+        LOG_I("Received a new sender request!");
         return true;
     }
 
@@ -253,30 +253,30 @@ bool SimpleSerial::_is_cmd_to_receive() {
 
 void SimpleSerial::_accept_request() {
     digitalWrite(_pin_rts, HIGH);
-    ESP_LOGD(TAG, "Request accepted!");
+    LOG_D("Request accepted!");
 }
 
 bool SimpleSerial::_is_cmd_received(Command &cmd) {
-    ESP_LOGD(TAG, "Ready to receive, waiting for command...");
+    LOG_D("Ready to receive, waiting for command...");
 
     _start_timeout();
     while (!_is_timeout()) {
         if (_serial->available() > 0) {
             cmd = (Command)_serial->read();
-            ESP_LOGD(TAG, "Received command: 0x%x", cmd);
+            LOG_D("Received command: 0x%x", cmd);
             return true;
         }
 
         delay(1); // To avoid flooding the CPU
     }
 
-    ESP_LOGW(TAG, "Timeout, didn't receive any command!");
+    LOG_W("Timeout, didn't receive any command!");
     return false;
 }
 
 void SimpleSerial::_send_cmd_echo(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
-    ESP_LOGD(TAG, "Echoed back same command: 0x%x", cmd);
+    LOG_D("Echoed back same command: 0x%x", cmd);
 }
 
 bool SimpleSerial::_is_receival_success(Command &cmd) {
@@ -307,7 +307,7 @@ bool SimpleSerial::_is_receival_success(Command &cmd) {
 
                 // Wait until sender exits as well (for sync)
                 if (_is_peer_exit("Sender")) {
-                    ESP_LOGI(TAG, "Receiver protocol completed successfully!\n");
+                    LOG_I("Receiver protocol completed successfully!\n");
                     return true;
                 }
             }
@@ -323,7 +323,7 @@ bool SimpleSerial::_is_receival_success(Command &cmd) {
     // Wait until sender exits as well (for sync)
     _is_peer_exit("Sender");
 
-    ESP_LOGE(TAG, "Receiver protocol failed!\n");
+    LOG_E("Receiver protocol failed!\n");
     return false;
 }
 
@@ -338,7 +338,7 @@ bool SimpleSerial::_receiver_retry(Command &cmd) {
         }
 
         if (attempt != _max_retries - 1) {
-            ESP_LOGI(TAG, "Attempt: %d, awaiting sender to retry...", attempt + 2);
+            LOG_I("Attempt: %d, awaiting sender to retry...", attempt + 2);
         }
 
         delay(1); // To avoid flooding the CPU

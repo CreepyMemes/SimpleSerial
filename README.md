@@ -7,3 +7,9 @@ Designed to work with ESP-IDF with Arduino as Component and uses a FreeRTOS task
 This protocol is an extension of the default UART, by adding two more pins that direct the sending / receiving only for 1 ESP32 at a time.
 
 NOTE: CTS and RTS pins must be pulled down, (4.7k ohm)
+
+On platformio.ini to set Simple Serial's logging level just add this build tag
+
+```
+build_flags = -DSIMPLE_SERIAL_LOG_LEVEL=4 ; To enable logging on Simple Serial Library
+```

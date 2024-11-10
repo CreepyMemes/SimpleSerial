@@ -3,7 +3,44 @@
 
 #include <Arduino.h>
 
+// clang-format off
 #define SIMPLE_SERIAL_TIMEOUT 50
+#define SIMPLE_SERIAL_LOG_TAG "simple_serial"
+
+#define SIMPLE_SERIAL_LOG_LEVEL_NONE  0
+#define SIMPLE_SERIAL_LOG_LEVEL_ERROR 1
+#define SIMPLE_SERIAL_LOG_LEVEL_WARN  2
+#define SIMPLE_SERIAL_LOG_LEVEL_INFO  3
+#define SIMPLE_SERIAL_LOG_LEVEL_DEBUG 4
+
+#ifndef SIMPLE_SERIAL_LOG_LEVEL
+    #define SIMPLE_SERIAL_LOG_LEVEL SIMPLE_SERIAL_LOG_LEVEL_NONE
+#endif
+
+#if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_ERROR
+    #define LOG_E(format, ...) ESP_LOGE(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
+#else
+    #define LOG_E(format, ...)
+#endif
+
+#if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_WARN
+    #define LOG_W(format, ...) ESP_LOGW(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
+#else
+    #define LOG_W(format, ...)
+#endif
+
+#if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_INFO
+    #define LOG_I(format, ...) ESP_LOGI(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
+#else
+    #define LOG_I(format, ...)
+#endif
+
+#if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_DEBUG
+    #define LOG_D(format, ...) ESP_LOGD(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
+#else
+    #define LOG_D(format, ...)
+#endif
+// clang-format on
 
 // Define binary commands using an enum
 enum Command : uint8_t {
@@ -67,8 +104,6 @@ class SimpleSerial {
         bool _receiver_retry(Command &cmd);
 
         static void _task_main(void *pvParameters);
-
-        static constexpr const char *TAG = "simple_serial";
 };
 
 #endif // SIMPLE_SERIAL_H
