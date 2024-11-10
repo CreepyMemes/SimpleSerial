@@ -3,16 +3,16 @@
 // -------------------------------------- PUBLIC METHODS -----------------------------------------------------
 
 SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
-                           const uint32_t stack_size, const UBaseType_t priority, uint8_t max_retries) :
+                           const uint32_t task_stack_size, const UBaseType_t task_priority, uint8_t max_retries) :
     _serial(serial),
     _pin_rx(rx_pin),
     _pin_tx(tx_pin),
     _pin_cts(cts_pin),
     _pin_rts(rts_pin),
-    _stack_size_task(stack_size),
-    _priority_task(priority),
-    _timeout(SIMPLE_SERIAL_TIMEOUT),
-    _max_retries(max_retries) {
+    _stack_size_task(task_stack_size),
+    _priority_task(task_priority),
+    _max_retries(max_retries),
+    _start_time(0) {
 
     _handle_task = NULL;                                 // Initialize the main task's handle to null
     _queue_cmds_out = xQueueCreate(10, sizeof(Command)); // Create the queue that holds outgoing messages
@@ -40,6 +40,14 @@ void SimpleSerial::send(const Command cmd) {
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
 
+void SimpleSerial::_start_timeout() {
+    _start_time = millis();
+}
+
+bool SimpleSerial::_is_timeout(const uint64_t reduce_factor) {
+    return (millis() - _start_time >= SIMPLE_SERIAL_TIMEOUT / reduce_factor);
+}
+
 void SimpleSerial::_exit_mode(const char *mode) {
     digitalWrite(_pin_rts, LOW);
     ESP_LOGD(TAG, "Exited from %s Mode", mode);
@@ -48,8 +56,8 @@ void SimpleSerial::_exit_mode(const char *mode) {
 bool SimpleSerial::_is_peer_exit(const char *peer_role) {
     ESP_LOGD(TAG, "Awaiting %s to exit...", peer_role);
 
-    _timeout.start();
-    while (!_timeout.isExpired()) {
+    _start_timeout();
+    while (!_is_timeout()) {
         if (digitalRead(_pin_cts) == LOW) {
             ESP_LOGD(TAG, "%s exited!", peer_role);
             return true;
@@ -70,8 +78,8 @@ void SimpleSerial::_send_confirmation() {
 bool SimpleSerial::_is_confirmed() {
     ESP_LOGD(TAG, "Awaiting for confirmation...");
 
-    _timeout.start();
-    while (!_timeout.isExpired()) {
+    _start_timeout();
+    while (!_is_timeout()) {
         if (digitalRead(_pin_cts) == LOW) {
             ESP_LOGD(TAG, "Confirmation Received!");
             return true;
@@ -87,8 +95,8 @@ bool SimpleSerial::_is_confirmed() {
 bool SimpleSerial::_is_confirmed_reply() {
     ESP_LOGD(TAG, "Awaiting for confirmation reply...");
 
-    _timeout.start();
-    while (!_timeout.isExpired()) {
+    _start_timeout();
+    while (!_is_timeout()) {
         if (digitalRead(_pin_cts) == HIGH) {
             ESP_LOGD(TAG, "Confirmation received!");
             return true;
@@ -121,8 +129,8 @@ bool SimpleSerial::_request_to_send() {
     digitalWrite(_pin_rts, HIGH);
     ESP_LOGD(TAG, "Entered Sender Mode, awaiting permission to send...");
 
-    _timeout.start();
-    while (!_timeout.isExpired()) {
+    _start_timeout();
+    while (!_is_timeout()) {
 
         if (digitalRead(_pin_cts) == HIGH) {
             ESP_LOGD(TAG, "Permission to send granted!");
@@ -146,8 +154,8 @@ bool SimpleSerial::_is_echo_correct(const Command cmd) {
     ESP_LOGD(TAG, "Awaiting command receival confirmation...");
     Command response;
 
-    _timeout.start();
-    while (!_timeout.isExpired_half()) {
+    _start_timeout();
+    while (!_is_timeout(2)) {
         if (_serial->available()) {
             response = (Command)_serial->read();
 
@@ -251,8 +259,8 @@ void SimpleSerial::_accept_request() {
 bool SimpleSerial::_is_cmd_received(Command &cmd) {
     ESP_LOGD(TAG, "Ready to receive, waiting for command...");
 
-    _timeout.start();
-    while (!_timeout.isExpired()) {
+    _start_timeout();
+    while (!_is_timeout()) {
         if (_serial->available() > 0) {
             cmd = (Command)_serial->read();
             ESP_LOGD(TAG, "Received command: 0x%x", cmd);

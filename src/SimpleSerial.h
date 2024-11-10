@@ -2,7 +2,6 @@
 #define SIMPLE_SERIAL_H
 
 #include <Arduino.h>
-#include <SimpleTimeOut.h>
 
 #define SIMPLE_SERIAL_TIMEOUT 50
 
@@ -39,8 +38,11 @@ class SimpleSerial {
         QueueHandle_t _queue_cmds_out; // Queue's handle of the outgoing commands queue
         TaskHandle_t _handle_task;     // Task handle of the outgoing commands task
 
-        SimpleTimeOut _timeout;
         uint8_t _max_retries;
+        uint64_t _start_time;
+
+        void _start_timeout();
+        bool _is_timeout(const uint64_t reduce_factor = 1);
 
         void _exit_mode(const char *mode);
         bool _is_peer_exit(const char *peer_role);
