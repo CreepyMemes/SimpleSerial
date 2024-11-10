@@ -26,7 +26,7 @@ SimpleSerial::~SimpleSerial() {
 void SimpleSerial::begin(const unsigned long baud_rate, const SerialConfig mode) {
     _serial->begin(baud_rate, mode, _pin_rx, _pin_tx); // Initialize the Hardware Serial Instance on the given port by argument
 
-    pinMode(_pin_cts, INPUT_PULLDOWN); // Initialize the "Clear To Send" pin to INPUT LOW -> DEFAULT
+    pinMode(_pin_cts, INPUT); // Initialize the "Clear To Send" pin to INPUT LOW -> DEFAULT
 
     pinMode(_pin_rts, OUTPUT);   // Initialize the "Request To Send" pin
     digitalWrite(_pin_rts, LOW); // and set it to LOW -> DEFAULT
