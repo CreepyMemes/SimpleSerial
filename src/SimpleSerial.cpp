@@ -279,7 +279,6 @@ void SimpleSerial::_send_cmd_echo(const Command cmd) {
     ESP_LOGD(TAG, "Echoed back same command: 0x%x", cmd);
 }
 
-// Will not retry if it fails, that's the sender's job
 bool SimpleSerial::_is_receival_success(Command &cmd) {
 
     // Accept the sender request by the other ESP32, by setting RTS pin HIGH
