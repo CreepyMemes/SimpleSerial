@@ -329,6 +329,26 @@ bool SimpleSerial::_is_receival_success() {
     return false;
 }
 
+// TODO ADD RETURN COMMAND OR CHANGE ITS REFERENCE
+bool SimpleSerial::_receiver_retry() {
+
+    // Take count of the receiving attempts if they fail
+    for (int attempt = 0; attempt < _max_retries; attempt++) {
+
+        if (_is_receival_success()) {
+            return true;
+        }
+
+        if (attempt != _max_retries - 1) {
+            ESP_LOGI(TAG, "Attempt: %d, awaiting sender to retry...", attempt + 2);
+        }
+
+        delay(1); // To avoid flooding the CPU
+    }
+
+    return false;
+}
+
 // -------------------------------------- MAIN TASK -----------------------------------------------------
 
 void SimpleSerial::_task_main(void *pvParameters) {
@@ -340,7 +360,7 @@ void SimpleSerial::_task_main(void *pvParameters) {
         // Check if there's a command to be sent by this ESP32
         if (self->_is_cmd_to_send(cmd)) {
 
-            // If sending fails, halt program execution (FOR NOW, TO REMOVE LATER)
+            // If sending fails, retry for max_retries times
             if (self->_sender_retry(cmd)) {
                 // Command sent successfully logic here
             }
@@ -348,8 +368,8 @@ void SimpleSerial::_task_main(void *pvParameters) {
         // Check if there's a request to receive a command sent by the other ESP32
         else if (self->_is_cmd_to_receive()) {
 
-            // If receival fails, just print it for debugging
-            if (self->_is_receival_success()) {
+            // If receival fails, take count of the attempts (max_retries must be same)
+            if (self->_receiver_retry()) {
                 // message received successfully logic here
             }
         }
