@@ -5,60 +5,60 @@
 SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const int8_t cts_pin, const uint8_t rts_pin,
                            const uint32_t task_stack_size, const UBaseType_t task_priority, uint8_t max_retries) :
     _serial(serial),
-    _pin_rx(rx_pin),
-    _pin_tx(tx_pin),
-    _pin_cts(cts_pin),
-    _pin_rts(rts_pin),
-    _stack_size_task(task_stack_size),
-    _priority_task(task_priority),
+    _rx_pin(rx_pin),
+    _tx_pin(tx_pin),
+    _cts_pin(cts_pin),
+    _rts_pin(rts_pin),
+    _task_stack_size(task_stack_size),
+    _task_priority(task_priority),
     _max_retries(max_retries),
     _start_time(0) {
 
-    _handle_task = NULL;                                 // Initialize the main task's handle to null
-    _queue_cmds_out = xQueueCreate(10, sizeof(Command)); // Create the queue that holds outgoing messages
+    _task_handle = NULL;                                         // Initialize the main task's handle to null
+    _queue_commands_to_send = xQueueCreate(10, sizeof(Command)); // Create the queue that holds outgoing messages
 }
 
 SimpleSerial::~SimpleSerial() {
-    vTaskDelete(_handle_task);
-    vQueueDelete(_queue_cmds_out);
+    vTaskDelete(_task_handle);
+    vQueueDelete(_queue_commands_to_send);
 }
 
 void SimpleSerial::begin(const unsigned long baud_rate, const SerialConfig mode) {
-    _serial->begin(baud_rate, mode, _pin_rx, _pin_tx); // Initialize the Hardware Serial Instance on the given port by argument
+    _serial->begin(baud_rate, mode, _rx_pin, _tx_pin); // Initialize the Hardware Serial Instance on the given port by argument
 
-    pinMode(_pin_cts, INPUT); // Initialize the "Clear To Send" pin to INPUT LOW -> DEFAULT
+    pinMode(_cts_pin, INPUT); // Initialize the "Clear To Send" pin to INPUT LOW -> DEFAULT
 
-    pinMode(_pin_rts, OUTPUT);   // Initialize the "Request To Send" pin
-    digitalWrite(_pin_rts, LOW); // and set it to LOW -> DEFAULT
+    pinMode(_rts_pin, OUTPUT);   // Initialize the "Request To Send" pin
+    digitalWrite(_rts_pin, LOW); // and set it to LOW -> DEFAULT
 
-    xTaskCreatePinnedToCore(_task_main, "simple_serial", _stack_size_task, this, _priority_task, &_handle_task, 1); // Create a FreeRTOS task for asynchronous operation
+    xTaskCreatePinnedToCore(_task_main, "simple_serial", _task_stack_size, this, _task_priority, &_task_handle, 1); // Create a FreeRTOS task for asynchronous operation
 }
 
 void SimpleSerial::send(const Command cmd) {
-    xQueueSend(_queue_cmds_out, &cmd, (TickType_t)10);
+    xQueueSend(_queue_commands_to_send, &cmd, (TickType_t)10);
 }
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
 
-void SimpleSerial::_start_timeout() {
+void SimpleSerial::startTimeout() {
     _start_time = millis();
 }
 
-bool SimpleSerial::_is_timeout(const uint64_t reduce_factor) {
+bool SimpleSerial::isTimeout(const uint64_t reduce_factor) {
     return (millis() - _start_time >= SIMPLE_SERIAL_TIMEOUT / reduce_factor);
 }
 
-void SimpleSerial::_exit_mode(const char *mode) {
-    digitalWrite(_pin_rts, LOW);
+void SimpleSerial::exitMode(const char *mode) {
+    digitalWrite(_rts_pin, LOW);
     LOG_D("Exited from %s Mode", mode);
 }
 
-bool SimpleSerial::_is_peer_exit(const char *peer_role) {
+bool SimpleSerial::isPeerExit(const char *peer_role) {
     LOG_D("Awaiting %s to exit...", peer_role);
 
-    _start_timeout();
-    while (!_is_timeout()) {
-        if (digitalRead(_pin_cts) == LOW) {
+    startTimeout();
+    while (!isTimeout()) {
+        if (digitalRead(_cts_pin) == LOW) {
             LOG_D("%s exited!", peer_role);
             return true;
         }
@@ -70,17 +70,17 @@ bool SimpleSerial::_is_peer_exit(const char *peer_role) {
     return false;
 }
 
-void SimpleSerial::_send_confirmation() {
-    digitalWrite(_pin_rts, LOW);
+void SimpleSerial::sendConfirmation() {
+    digitalWrite(_rts_pin, LOW);
     LOG_D("Sent confirmation!");
 }
 
-bool SimpleSerial::_is_confirmed() {
+bool SimpleSerial::isConfirmed() {
     LOG_D("Awaiting for confirmation...");
 
-    _start_timeout();
-    while (!_is_timeout()) {
-        if (digitalRead(_pin_cts) == LOW) {
+    startTimeout();
+    while (!isTimeout()) {
+        if (digitalRead(_cts_pin) == LOW) {
             LOG_D("Success! Confirmation Received!");
             return true;
         }
@@ -92,12 +92,12 @@ bool SimpleSerial::_is_confirmed() {
     return false;
 }
 
-bool SimpleSerial::_is_confirmed_ack() {
+bool SimpleSerial::isConfirmedACK() {
     LOG_D("Awaiting for confirmation acknowledgement...");
 
-    _start_timeout();
-    while (!_is_timeout()) {
-        if (digitalRead(_pin_cts) == HIGH) {
+    startTimeout();
+    while (!isTimeout()) {
+        if (digitalRead(_cts_pin) == HIGH) {
             LOG_D("Success!, Confirmation acknowledgement received!");
             return true;
         }
@@ -109,15 +109,15 @@ bool SimpleSerial::_is_confirmed_ack() {
     return false;
 }
 
-void SimpleSerial::_end_confirmation() {
+void SimpleSerial::endConfirmation() {
     LOG_D("Confirmation protocol ended");
-    digitalWrite(_pin_rts, HIGH);
+    digitalWrite(_rts_pin, HIGH);
 }
 
 // -------------------------------------- SENDER METHODS -----------------------------------------------------
 
-bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
-    if (xQueueReceive(_queue_cmds_out, (void *)&cmd, (TickType_t)10) == pdTRUE) {
+bool SimpleSerial::isNewCommandToSend(const Command &cmd) {
+    if (xQueueReceive(_queue_commands_to_send, (void *)&cmd, (TickType_t)10) == pdTRUE) {
         LOG_I("New command to be sent: 0x%x", cmd);
         return true;
     }
@@ -125,14 +125,14 @@ bool SimpleSerial::_is_cmd_to_send(const Command &cmd) {
     return false;
 }
 
-bool SimpleSerial::_request_to_send() {
-    digitalWrite(_pin_rts, HIGH);
+bool SimpleSerial::requestToSend() {
+    digitalWrite(_rts_pin, HIGH);
     LOG_D("Entered Sender Mode, awaiting permission to send...");
 
-    _start_timeout();
-    while (!_is_timeout()) {
+    startTimeout();
+    while (!isTimeout()) {
 
-        if (digitalRead(_pin_cts) == HIGH) {
+        if (digitalRead(_cts_pin) == HIGH) {
             LOG_D("Successful request! received permission to send!");
             return true;
         }
@@ -144,18 +144,18 @@ bool SimpleSerial::_request_to_send() {
     return false;
 }
 
-void SimpleSerial::_send_command(const Command cmd) {
+void SimpleSerial::sendCommand(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
     LOG_D("Attempted to send command: 0x%x", cmd);
 }
 
-bool SimpleSerial::_is_echo_correct(const Command cmd) {
+bool SimpleSerial::isEchoCorrect(const Command cmd) {
 
     LOG_D("Awaiting receiver to respond by echoing same command...");
     Command response;
 
-    _start_timeout();
-    while (!_is_timeout(2)) {
+    startTimeout();
+    while (!isTimeout(2)) {
         if (_serial->available()) {
             response = (Command)_serial->read();
 
@@ -175,31 +175,31 @@ bool SimpleSerial::_is_echo_correct(const Command cmd) {
     return false;
 }
 
-bool SimpleSerial::_is_sender_success(const Command cmd) {
+bool SimpleSerial::isSenderSuccess(const Command cmd) {
 
     // Check if the other ESP32 accepted the request to send a command
-    if (_request_to_send()) {
+    if (requestToSend()) {
 
         // Attempt to send the command
-        _send_command(cmd);
+        sendCommand(cmd);
 
         // Check if the command was sent successfully
-        if (_is_echo_correct(cmd)) {
+        if (isEchoCorrect(cmd)) {
 
             // Send confirmation by just setting RTS pin to LOW
-            _send_confirmation();
+            sendConfirmation();
 
             // Check if the sent confirmation has been received
-            if (_is_confirmed()) {
+            if (isConfirmed()) {
 
                 // End confirmation protocol by just setting RTS pin back to HIGH
-                _end_confirmation();
+                endConfirmation();
 
                 // Wait until receiver exits (for sync)
-                if (_is_peer_exit("Receiver")) {
+                if (isPeerExit("Receiver")) {
 
                     // Exit after receiver exits
-                    _exit_mode("Sender");
+                    exitMode("Sender");
 
                     LOG_I("Sender protocol completed successfully!\n");
                     return true;
@@ -209,24 +209,24 @@ bool SimpleSerial::_is_sender_success(const Command cmd) {
     }
 
     // End confirmation as it went wrong
-    _end_confirmation();
+    endConfirmation();
 
     // Now wait until the receiver exits for sync
-    _is_peer_exit("Receiver");
+    isPeerExit("Receiver");
 
     // Exit after receiver exits
-    _exit_mode("Sender");
+    exitMode("Sender");
 
     LOG_E("Sender protocol failed!\n");
     return false;
 }
 
-bool SimpleSerial::_sender_retry(const Command cmd) {
+bool SimpleSerial::senderRetry(const Command cmd) {
 
     // Retry to send the message if it fails
     for (int attempt = 0; attempt < _max_retries; attempt++) {
 
-        if (_is_sender_success(cmd)) {
+        if (isSenderSuccess(cmd)) {
             return true;
         }
 
@@ -242,8 +242,8 @@ bool SimpleSerial::_sender_retry(const Command cmd) {
 
 // -------------------------------------- RECEIVER METHODS -----------------------------------------------------
 
-bool SimpleSerial::_is_cmd_to_receive() {
-    if (digitalRead(_pin_cts) == HIGH) {
+bool SimpleSerial::isNewCommandToReceive() {
+    if (digitalRead(_cts_pin) == HIGH) {
         LOG_I("Received a new sender request!");
         return true;
     }
@@ -251,16 +251,16 @@ bool SimpleSerial::_is_cmd_to_receive() {
     return false;
 }
 
-void SimpleSerial::_accept_request() {
-    digitalWrite(_pin_rts, HIGH);
+void SimpleSerial::acceptRequest() {
+    digitalWrite(_rts_pin, HIGH);
     LOG_D("Request accepted!");
 }
 
-bool SimpleSerial::_is_cmd_received(Command &cmd) {
+bool SimpleSerial::isCommandReceived(Command &cmd) {
     LOG_D("Ready to receive, waiting for command...");
 
-    _start_timeout();
-    while (!_is_timeout()) {
+    startTimeout();
+    while (!isTimeout()) {
         if (_serial->available() > 0) {
             cmd = (Command)_serial->read();
             LOG_D("Received command: 0x%x", cmd);
@@ -274,39 +274,39 @@ bool SimpleSerial::_is_cmd_received(Command &cmd) {
     return false;
 }
 
-void SimpleSerial::_send_cmd_echo(const Command cmd) {
+void SimpleSerial::sendCommandEcho(const Command cmd) {
     _serial->write((uint8_t *)&cmd, sizeof(cmd));
     LOG_D("Echoed back same command: 0x%x", cmd);
 }
 
-bool SimpleSerial::_is_receival_success(Command &cmd) {
+bool SimpleSerial::isReceivalSuccess(Command &cmd) {
 
     // Accept the sender request by the other ESP32, by setting RTS pin HIGH
-    _accept_request();
+    acceptRequest();
 
     // Check if a command has been received
-    if (_is_cmd_received(cmd)) {
+    if (isCommandReceived(cmd)) {
 
         // Echo back command for confirmation
-        _send_cmd_echo(cmd);
+        sendCommandEcho(cmd);
 
         // Check if the sender confirms the echoed command being correct
-        if (_is_confirmed()) {
+        if (isConfirmed()) {
 
             // Send confirmation that sender's confirmation was received
-            _send_confirmation();
+            sendConfirmation();
 
             // Check if the sender received our confirmation acknowledgement
-            if (_is_confirmed_ack()) {
+            if (isConfirmedACK()) {
 
                 // End confirmation protocol by just setting RTS pin back to HIGH
-                _end_confirmation();
+                endConfirmation();
 
                 // Exit receiver mode
-                _exit_mode("Receiver");
+                exitMode("Receiver");
 
                 // Wait until sender exits as well (for sync)
-                if (_is_peer_exit("Sender")) {
+                if (isPeerExit("Sender")) {
                     LOG_I("Receiver protocol completed successfully!\n");
                     return true;
                 }
@@ -315,24 +315,24 @@ bool SimpleSerial::_is_receival_success(Command &cmd) {
     }
 
     // Confirmation failed just end it
-    _end_confirmation();
+    endConfirmation();
 
     // Exit receiver mode
-    _exit_mode("Receiver");
+    exitMode("Receiver");
 
     // Wait until sender exits as well (for sync)
-    _is_peer_exit("Sender");
+    isPeerExit("Sender");
 
     LOG_E("Receiver protocol failed!\n");
     return false;
 }
 
-bool SimpleSerial::_receiver_retry(Command &cmd) {
+bool SimpleSerial::receiverRetry(Command &cmd) {
 
     // Take count of the receiving attempts if they fail
     for (int attempt = 0; attempt < _max_retries; attempt++) {
 
-        if (_is_receival_success(cmd)) {
+        if (isReceivalSuccess(cmd)) {
             return true;
         }
 
@@ -355,18 +355,18 @@ void SimpleSerial::_task_main(void *pvParameters) {
     while (true) {
 
         // Check if there's a command to be sent by this ESP32
-        if (self->_is_cmd_to_send(cmd)) {
+        if (self->isNewCommandToSend(cmd)) {
 
             // If sending fails, retry for max_retries times
-            if (self->_sender_retry(cmd)) {
+            if (self->senderRetry(cmd)) {
                 // Command sent successfully logic here
             }
         }
         // Check if there's a request to receive a command sent by the other ESP32
-        else if (self->_is_cmd_to_receive()) {
+        else if (self->isNewCommandToReceive()) {
 
             // If receival fails, take count of the attempts (max_retries must be same)
-            if (self->_receiver_retry(cmd)) {
+            if (self->receiverRetry(cmd)) {
 
                 // Command received successfully logic here
                 Serial.print("Executing command: 0x");
