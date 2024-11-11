@@ -116,7 +116,7 @@ void SimpleSerial::endConfirmation() {
 
 // -------------------------------------- SENDER METHODS -----------------------------------------------------
 
-bool SimpleSerial::isNewCommandToSend(const Command &cmd) {
+bool SimpleSerial::isNewCommandToSend(Command &cmd) {
     if (xQueueReceive(_queue_commands_to_send, (void *)&cmd, (TickType_t)10) == pdTRUE) {
         LOG_I("New command to be sent: 0x%x", cmd);
         return true;
@@ -360,6 +360,9 @@ void SimpleSerial::_task_main(void *pvParameters) {
             // If sending fails, retry for max_retries times
             if (self->senderRetry(cmd)) {
                 // Command sent successfully logic here
+                Serial.print("Successfully sent command: 0x");
+                Serial.print(cmd, HEX);
+                Serial.println('\n');
             }
         }
         // Check if there's a request to receive a command sent by the other ESP32
@@ -371,7 +374,7 @@ void SimpleSerial::_task_main(void *pvParameters) {
                 // Command received successfully logic here
                 Serial.print("Executing command: 0x");
                 Serial.print(cmd, HEX);
-                Serial.println();
+                Serial.println('\n');
             }
         }
 

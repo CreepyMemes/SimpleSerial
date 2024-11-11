@@ -99,7 +99,7 @@ class SimpleSerial {
         void endConfirmation();
 
         // Sender Mode methods
-        bool isNewCommandToSend(const Command &cmd);
+        bool isNewCommandToSend(Command &cmd);
         bool requestToSend();
         void sendCommand(const Command cmd);
         bool isEchoCorrect(const Command cmd);
@@ -110,7 +110,7 @@ class SimpleSerial {
         bool isNewCommandToReceive();
         void acceptRequest();
         bool isCommandReceived(Command &cmd);
-        void sendCommandEcho(Command cmd);
+        void sendCommandEcho(const Command cmd);
         bool isReceivalSuccess(Command &cmd);
         bool receiverRetry(Command &cmd);
 
