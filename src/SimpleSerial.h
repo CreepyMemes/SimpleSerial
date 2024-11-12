@@ -2,51 +2,13 @@
 #define SIMPLE_SERIAL_H
 
 #include <Arduino.h>
+#include "Logging.h"
 #include "Message.h"
 
 // SimpleSerial protocol constants
 #define SIMPLE_SERIAL_TIMEOUT    50   // Defines the timeout range for each interaction
 #define SIMPLE_SERIAL_STACK_SIZE 2048 // Defines the allocated stack size of the main task
 #define SIMPLE_SERIAL_CORE       1    // Defines which core the simple serial task will be pinned in
-
-// Defined TAG for Serial logging
-#define SIMPLE_SERIAL_LOG_TAG "simple_serial"
-
-// Serial logging levels
-#define SIMPLE_SERIAL_LOG_LEVEL_NONE  0
-#define SIMPLE_SERIAL_LOG_LEVEL_ERROR 1
-#define SIMPLE_SERIAL_LOG_LEVEL_WARN  2
-#define SIMPLE_SERIAL_LOG_LEVEL_INFO  3
-#define SIMPLE_SERIAL_LOG_LEVEL_DEBUG 4
-
-// Serial logging toggles
-#ifndef SIMPLE_SERIAL_LOG_LEVEL
-#define SIMPLE_SERIAL_LOG_LEVEL SIMPLE_SERIAL_LOG_LEVEL_NONE
-#endif
-
-#if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_ERROR
-#define SS_LOG_E(format, ...) ESP_LOGE(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
-#else
-#define SS_LOG_E(format, ...)
-#endif
-
-#if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_WARN
-#define SS_LOG_W(format, ...) ESP_LOGW(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
-#else
-#define SS_LOG_W(format, ...)
-#endif
-
-#if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_INFO
-#define SS_LOG_I(format, ...) ESP_LOGI(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
-#else
-#define SS_LOG_I(format, ...)
-#endif
-
-#if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_DEBUG
-#define SS_LOG_D(format, ...) ESP_LOGD(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
-#else
-#define SS_LOG_D(format, ...)
-#endif
 
 // Define the handshake states
 enum Handshake {
