@@ -1,12 +1,12 @@
 # SimpleSerial Library
 
-Simple api class for UART comunication protocol between two ESP32's.
+SimpleSerial is a library that enables asynchronous communication between two ESP32's, through the UART protocol, with handshakes and checksums for reliability. Either ESP32 can be either sending ore receiving at a time
+
+---
 
 Designed to work with ESP-IDF with Arduino as Component and uses a FreeRTOS task and queues to archieve asynchronous functionality.
 
-This protocol is an extension of the default UART, by adding two more pins that direct the sending / receiving only for 1 ESP32 at a time.
-
-NOTE: CTS and RTS pins must be pulled down, (4.7k ohm)
+### Note
 
 On platformio.ini to set Simple Serial's logging level just add this build tag
 
