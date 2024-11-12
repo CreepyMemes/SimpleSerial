@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <esp_crc.h>
+#include "Logging.h"
 
 // Message class constants
 #define MESSAGE_MAX_DATA_SIZE 128
@@ -17,12 +18,18 @@ class Message {
 
         bool verify() const;
 
-    private:
-        size_t _length;     // Length of the message data
-        uint8_t _data[128]; // Message data byte buffer with fixed size
-        uint8_t _checksum;  // Checksum of the message data
+        // Accessor methods
+        size_t getLength() const;
+        void getData(uint8_t *data) const;
+        uint8_t getChecksum() const;
 
-        uint8_t _calculateChecksum() const; // Calculate the CRC-8/ROHC checksum for the given data
+    private:
+        size_t _length;                       // Length of the message data
+        uint8_t _data[MESSAGE_MAX_DATA_SIZE]; // Message data byte buffer with fixed size
+        uint8_t _checksum;                    // Checksum of the message data
+
+
+        uint8_t _calculateChecksum() const;
 };
 
 #endif // MESSAGE_H

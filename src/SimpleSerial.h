@@ -41,6 +41,10 @@ class SimpleSerial {
         QueueHandle_t _message_queue; // Queue's handle of the outgoing commands queue
         uint8_t _max_retries;         // The amount of retries if the protocol fails
 
+        uint8_t _readMessage(uint8_t *msg);
+        bool _isAvailableToSend(Message &cmd);
+        bool _isAvailableToReceive();
+
         void _createMessageQueue();
         void _destroyMessageQueue();
 
