@@ -2,49 +2,89 @@
 
 // -------------------------------------- PUBLIC METHODS -----------------------------------------------------
 
-SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const uint32_t task_stack_size, const UBaseType_t task_priority, uint8_t max_retries) :
+// Constructor
+SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, uint8_t max_retries, const UBaseType_t task_priority) :
     _serial(serial),
     _rx_pin(rx_pin),
     _tx_pin(tx_pin),
-    _task_stack_size(task_stack_size),
     _task_priority(task_priority),
     _max_retries(max_retries),
-    _start_time(0) {
+    _task_handle(NULL),
+    _message_queue(NULL) {
 
-    _task_handle            = NULL;                              // Initialize the main task's handle to null
-    _queue_commands_to_send = xQueueCreate(10, sizeof(Command)); // Create the queue that holds outgoing messages
+    // _message_queue = xQueueCreate(10, sizeof(int)); // Create the queue that holds outgoing messages
 }
 
+// Destructor
 SimpleSerial::~SimpleSerial() {
-    vTaskDelete(_task_handle);
-    vQueueDelete(_queue_commands_to_send);
+    end();
 }
 
 void SimpleSerial::begin(const unsigned long baud_rate, const SerialConfig mode) {
-    // Initialize the Hardware Serial Instance on the given port by argument
     _serial->begin(baud_rate, mode, _rx_pin, _tx_pin);
-
-    // Create a FreeRTOS task for asynchronous operation
-    xTaskCreatePinnedToCore(_task_main, "simple_serial", _task_stack_size, this, _task_priority, &_task_handle, 1);
+    _createMessageQueue();
+    _createMainTask();
 }
 
-void SimpleSerial::send(const Command cmd) {
-    xQueueSend(_queue_commands_to_send, &cmd, (TickType_t)10);
+// Destroy main task and messages queue
+void SimpleSerial::end() {
+    _destroyMainTask();
+    _destroyMessageQueue();
+}
+
+void SimpleSerial::send(const Message &msg) {
+    xQueueSend(_message_queue, &msg, (TickType_t)10);
 }
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
 
+// Create the queue that will hold the outoging messages
+void SimpleSerial::_createMessageQueue() {
+    if (_message_queue == NULL) {
+        _message_queue = xQueueCreate(10, sizeof(Message));
 
-// -------------------------------------- SENDER METHODS -----------------------------------------------------
+        if (_message_queue == NULL) {
+            SS_LOG_E("Queue for outgoing messages failed to create!");
+        }
+    }
+}
+
+// Destroy the outgoing messages queue
+void SimpleSerial::_destroyMessageQueue() {
+    if (_message_queue != NULL) {
+        vQueueDelete(_message_queue);
+        _message_queue = NULL;
+    }
+}
+
+// Create the main task for asynchronous operation
+void SimpleSerial::_createMainTask() {
+    if (_task_handle == NULL) {
+        xTaskCreatePinnedToCore(_mainTask, "simple_serial", SIMPLE_SERIAL_STACK_SIZE, this, _task_priority, &_task_handle, SIMPLE_SERIAL_CORE);
+
+        if (_task_handle == NULL) {
+            SS_LOG_E("Main task failed to create!");
+        }
+    }
+}
+
+// Destroy the main task
+void SimpleSerial::_destroyMainTask() {
+    if (_task_handle != NULL) {
+        vTaskDelete(_task_handle);
+        _task_handle = NULL;
+    }
+}
+
+// bool isTimeout(unsigned long start_time) {
+//     return (millis() - start_time >= SIMPLE_SERIAL_TIMEOUT);
+// }
 
 
-// -------------------------------------- RECEIVER METHODS -----------------------------------------------------
+void SimpleSerial::_mainTask(void *arg) {
 
-// -------------------------------------- MAIN TASK -----------------------------------------------------
-
-void SimpleSerial::_task_main(void *pvParameters) {
-    SimpleSerial *self = (SimpleSerial *)pvParameters; // Cast pvParameters to SimpleSerial pointer
-    Command cmd;
+    // Cast arg to SimpleSerial pointer to go into this object instance
+    SimpleSerial *self = (SimpleSerial *)arg;
 
     while (true) {
 

@@ -2,9 +2,12 @@
 #define SIMPLE_SERIAL_H
 
 #include <Arduino.h>
+#include "Message.h"
 
 // SimpleSerial protocol constants
-#define SIMPLE_SERIAL_TIMEOUT 50
+#define SIMPLE_SERIAL_TIMEOUT    50   // Defines the timeout range for each interaction
+#define SIMPLE_SERIAL_STACK_SIZE 2048 // Defines the allocated stack size of the main task
+#define SIMPLE_SERIAL_CORE       1    // Defines which core the simple serial task will be pinned in
 
 // Defined TAG for Serial logging
 #define SIMPLE_SERIAL_LOG_TAG "simple_serial"
@@ -22,71 +25,67 @@
 #endif
 
 #if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_ERROR
-#define LOG_E(format, ...) ESP_LOGE(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
+#define SS_LOG_E(format, ...) ESP_LOGE(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
 #else
-#define LOG_E(format, ...)
+#define SS_LOG_E(format, ...)
 #endif
 
 #if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_WARN
-#define LOG_W(format, ...) ESP_LOGW(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
+#define SS_LOG_W(format, ...) ESP_LOGW(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
 #else
-#define LOG_W(format, ...)
+#define SS_LOG_W(format, ...)
 #endif
 
 #if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_INFO
-#define LOG_I(format, ...) ESP_LOGI(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
+#define SS_LOG_I(format, ...) ESP_LOGI(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
 #else
-#define LOG_I(format, ...)
+#define SS_LOG_I(format, ...)
 #endif
 
 #if SIMPLE_SERIAL_LOG_LEVEL >= SIMPLE_SERIAL_LOG_LEVEL_DEBUG
-#define LOG_D(format, ...) ESP_LOGD(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
+#define SS_LOG_D(format, ...) ESP_LOGD(SIMPLE_SERIAL_LOG_TAG, format, ##__VA_ARGS__)
 #else
-#define LOG_D(format, ...)
+#define SS_LOG_D(format, ...)
 #endif
 
-// Defined binary commands using an enum
-enum Command : uint8_t {
-    CMD_START  = 0x01,
-    CMD_STOP   = 0x02,
-    CMD_STATUS = 0x03,
-    CMD_RESET  = 0x04,
-    CMD_TEST   = 0x69,
-    CMD_WRONG  = 0x45
+// Define the handshake states
+enum Handshake {
+    SYN     = 0x01, // Synchronize
+    SYN_ACK = 0x02, // Synchronize-Acknowledge
+    ACK     = 0x03, // Acknowledge
+    NAK     = 0x04, // Negative Acknowledge
+    FIN     = 0x05  // Finish
 };
 
-// TODO: New Version
-
+// Simple Serial api class
 class SimpleSerial {
     public:
-        SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, const uint32_t task_stack_size = 4096, const UBaseType_t task_priority = 5, uint8_t max_retries = 3);
+        SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, uint8_t max_retries = 3, const UBaseType_t task_priority = 5);
         ~SimpleSerial();
 
-        void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_8N1);
-        void send(const Command cmd);
+        void begin(const unsigned long baud_rate, const SerialConfig mode);
+        void end();
 
+        void send(const Message &msg);
 
     private:
         HardwareSerial *_serial; // Pointer to the UART protocol interface instance
 
-        // SimpleSerial protocol defined pins
-        int8_t _rx_pin;
-        int8_t _tx_pin;
+        int8_t _rx_pin; // Defined pin for reading UART data
+        int8_t _tx_pin; // Defined pin for writing UART data
 
+        TaskHandle_t _task_handle;    // Task handle of the outgoing commands task
+        UBaseType_t _task_priority;   // Holds the main task's task_priority for the FreeRTOS scheduler
+        QueueHandle_t _message_queue; // Queue's handle of the outgoing commands queue
+        uint8_t _max_retries;         // The amount of retries if the protocol fails
 
-        uint32_t _task_stack_size;  // Defines the allocated stack size of the main task
-        UBaseType_t _task_priority; // Holds the main task's task_priority for the FreeRTOS scheduler
+        void _createMessageQueue();
+        void _destroyMessageQueue();
 
-        QueueHandle_t _queue_commands_to_send; // Queue's handle of the outgoing commands queue
-        TaskHandle_t _task_handle;             // Task handle of the outgoing commands task
+        void _createMainTask();
+        void _destroyMainTask();
 
-        uint8_t _max_retries; // The amount of retries if the protocol fails
-        uint64_t _start_time; // Time in ms used for setting timeout
-
-        // TODO
-
-        // Main protocol looping async task
-        static void _task_main(void *pvParameters);
+        static void _mainTask(void *arg);
 };
 
 #endif // SIMPLE_SERIAL_H
