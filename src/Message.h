@@ -5,8 +5,6 @@
 #include <esp_crc.h>
 #include <vector>
 
-#include "Logging.h"
-
 // Message class for managing sending and receiving binary messages with checksum
 class Message {
     public:
