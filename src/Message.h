@@ -3,31 +3,27 @@
 
 #include <Arduino.h>
 #include <esp_crc.h>
+#include <vector>
 #include "Logging.h"
-
-// Message class constants
-#define MESSAGE_MAX_DATA_SIZE 128
 
 // Define the message structure
 class Message {
     public:
         Message();
 
-        bool set(const uint8_t *data, const size_t len, uint8_t checksum);
-        bool set(const uint8_t *data, const size_t len);
+        void decode(const std::vector<uint8_t> &payload);
+        void create(const std::vector<uint8_t> &message);
 
         bool verify() const;
+        std::vector<uint8_t> genPayload() const;
 
-        // Accessor methods
-        size_t getLength() const;
-        void getData(uint8_t *data) const;
+        // Accessor method
+        std::vector<uint8_t> getMessage() const;
         uint8_t getChecksum() const;
 
     private:
-        size_t _length;                       // Length of the message data
-        uint8_t _data[MESSAGE_MAX_DATA_SIZE]; // Message data byte buffer with fixed size
-        uint8_t _checksum;                    // Checksum of the message data
-
+        std::vector<uint8_t> _message;
+        uint8_t _checksum; // Checksum of the message data
 
         uint8_t _calculateChecksum() const;
 };

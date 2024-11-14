@@ -2,58 +2,50 @@
 
 // -------------------------------------- PUBLIC METHODS -----------------------------------------------------
 
-// Message constructor that initializes everything to 0
+// Default constructor with member initialization set to 0
 Message::Message() :
-    _length(0),
+    _message(),
     _checksum(0) {
-    memset(_data, 0, MESSAGE_MAX_DATA_SIZE);
 }
 
-// Receiver's constructor to set the message data received checksum
-bool Message::set(const uint8_t *data, const size_t length, uint8_t checksum) {
-
-    // Data too large to fit in the buffer
-    if (length > MESSAGE_MAX_DATA_SIZE) {
-        SS_LOG_E("Error setting message data, size too long, max is %d, got %d", MESSAGE_MAX_DATA_SIZE, length);
-        return false;
-    }
-
-    _length = length;
-    memcpy((void *)_data, data, length);
-    _checksum = checksum;
-
-    return true;
+// Receiver's method to decodes a received payload extracting checksum
+void Message::decode(const std::vector<uint8_t> &payload) {
+    _message = payload;
+    _message.pop_back();
+    _checksum = payload.back();
 }
 
-// Sender's constructor to set the message data with new checksum generation
-bool Message::set(const uint8_t *data, const size_t length) {
-    return set(data, length, _calculateChecksum());
+// Sender's method to creates a payload with calculated checksum
+void Message::create(const std::vector<uint8_t> &message) {
+    _message  = message;
+    _checksum = _calculateChecksum();
 }
 
-// Method to verify the checksum of the message
+// Receiver's method to check if the checksum of the decoded message is correct
 bool Message::verify() const {
     return _calculateChecksum() == _checksum;
 }
 
-
-// -------------------------------------- PRIVATE METHODS -----------------------------------------------------
-
-// data buffer getter method
-void Message::getData(uint8_t *data) const {
-    memcpy(data, _data, _length);
+// Sender's method to generate a message payload
+std::vector<uint8_t> Message::genPayload() const {
+    std::vector<uint8_t> payload = _message;
+    payload.push_back(_checksum);
+    return payload;
 }
 
-// data length getter method
-size_t Message::getLength() const {
-    return _length;
+// Message getter method
+std::vector<uint8_t> Message::getMessage() const {
+    return _message;
 }
 
-// checksum getter method
+// Checksum getter method
 uint8_t Message::getChecksum() const {
     return _checksum;
 }
 
+// -------------------------------------- PRIVATE METHODS -----------------------------------------------------
+
 // Calculate the CRC-8/ROHC checksum for the given data
 uint8_t Message::_calculateChecksum() const {
-    return ~esp_crc8_le(0, _data, _length);
+    return ~esp_crc8_le(0, const_cast<const uint8_t *>(&_message[0]), _message.size());
 }
