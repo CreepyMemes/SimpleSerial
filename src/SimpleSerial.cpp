@@ -66,8 +66,6 @@ void SimpleSerial::_popQueue() {
     _message_queue.pop();          // Remove the message to send from the queue
 }
 
-// TODO: no need to transfer vectors in freertos queue at this point...
-
 // Check if a new message to send is available
 bool SimpleSerial::_isAvailableToSend(Message &message) {
     if (xSemaphoreTake(_message_available_event, (TickType_t)10) == pdTRUE) {
