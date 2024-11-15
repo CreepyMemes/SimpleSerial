@@ -10,7 +10,7 @@ SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const in
     _task_priority(task_priority),
     _max_retries(max_retries),
     _task_handle(NULL),
-    _message_queue(NULL) {
+    _freertos_message_queue(NULL) {
 }
 
 // Destructor
@@ -31,17 +31,24 @@ void SimpleSerial::end() {
     _destroyMessageQueue();
 }
 
-// TODO
-void SimpleSerial::send(const Message &msg) {
-    xQueueSend(_message_queue, &msg, (TickType_t)10);
+// Method used to send new messages through the Simple Serial protocol
+void SimpleSerial::send(const std::vector<uint8_t> &message) {
+    std::vector<uint8_t> *message_to_send = new std::vector<uint8_t>(message); // Allocates a new message vector dynamically
+    _message_queue.push(message_to_send);                                      // Pushes the dynamic vector's pointer to the object's message queue handler
+    xQueueSend(_freertos_message_queue, message_to_send, (TickType_t)10);      // And sends it to the main task through the definedfreertos message queue
 }
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
 
 // TODO
-bool SimpleSerial::_isAvailableToSend(Message &msg) {
-    if (xQueueReceive(_message_queue, &msg, (TickType_t)10) == pdTRUE) {
+bool SimpleSerial::_isAvailableToSend(Message &message) {
+    std::vector<uint8_t> *message_to_send = NULL;
 
+    if (xQueueReceive(_freertos_message_queue, &message_to_send, (TickType_t)10) == pdTRUE) {
+        SS_LOG_I("New message to send: {%s}", vectorToHexString(message_to_send).c_str());
+
+        _message_queue.pop();   // Remove the message to send from the queue
+        delete message_to_send; // Free the dynamically allocated vector
         return true;
     }
 
@@ -61,10 +68,10 @@ bool SimpleSerial::_isAvailableToReceive() {
 
 // Create the queue that will hold the outoging messages
 void SimpleSerial::_createMessageQueue() {
-    if (_message_queue == NULL) {
-        _message_queue = xQueueCreate(10, sizeof(Message));
+    if (_freertos_message_queue == NULL) {
+        _freertos_message_queue = xQueueCreate(SIMPLE_SERIAL_QUEUE_SIZE, sizeof(std::vector<uint8_t> *));
 
-        if (_message_queue == NULL) {
+        if (_freertos_message_queue == NULL) {
             SS_LOG_E("Queue for outgoing messages failed to create!");
         }
     }
@@ -72,9 +79,9 @@ void SimpleSerial::_createMessageQueue() {
 
 // Destroy the outgoing messages queue
 void SimpleSerial::_destroyMessageQueue() {
-    if (_message_queue != NULL) {
-        vQueueDelete(_message_queue);
-        _message_queue = NULL;
+    if (_freertos_message_queue != NULL) {
+        vQueueDelete(_freertos_message_queue);
+        _freertos_message_queue = NULL;
     }
 }
 
@@ -104,10 +111,13 @@ void SimpleSerial::_mainTask(void *arg) {
     SimpleSerial *self = (SimpleSerial *)arg;
 
     // Create a Message object to manage incoming/outcoming messages
-    Message msg;
+    Message message;
+
+    // The message payload vector handler
+    std::vector<uint8_t> payload;
 
     while (true) {
-        if (self->_isAvailableToSend(msg)) {
+        if (self->_isAvailableToSend(message)) {
             // send msg protocol here
         }
 
