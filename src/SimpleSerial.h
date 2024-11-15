@@ -56,7 +56,7 @@ class SimpleSerial {
         bool _isAvailableToReceive();
 
         void _pushQueue(const std::vector<uint8_t> &message);
-        void _popQueue(std::vector<uint8_t> *message);
+        void _popQueue();
 
         void _createMessageQueue();
         void _destroyMessageQueue();

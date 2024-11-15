@@ -44,9 +44,9 @@ void SimpleSerial::_pushQueue(const std::vector<uint8_t> &message) {
     _message_queue.push(message_to_send);                                      // Pushes the dynamic vector's pointer to the object's message queue handler
 }
 
-void SimpleSerial::_popQueue(std::vector<uint8_t> *message) {
-    _message_queue.pop(); // Remove the message to send from the queue
-    delete message;       // Free the dynamically allocated vector
+void SimpleSerial::_popQueue() {
+    delete _message_queue.back(); // Free the dynamically allocated vector
+    _message_queue.pop();         // Remove the message to send from the queue
 }
 
 // TODO
@@ -55,9 +55,7 @@ bool SimpleSerial::_isAvailableToSend(Message &message) {
 
     if (xQueueReceive(_freertos_message_queue, &message_to_send, (TickType_t)10) == pdTRUE) {
 
-
         SS_LOG_I("New message to send: {%s}", vectorToHexString(*message_to_send).c_str());
-        // vectorToHexString(*message_to_send).c_str();
 
         try {
             // initiate the message handler with message as SENDER mode
@@ -66,11 +64,10 @@ bool SimpleSerial::_isAvailableToSend(Message &message) {
         // Error handling if message initiation fails
         catch (const std::exception &e) {
             SS_LOG_E("%s", e.what());
-            _popQueue(message_to_send);
+            _popQueue();
         }
 
-        _popQueue(message_to_send);
-
+        _popQueue();
         return true;
     }
 
