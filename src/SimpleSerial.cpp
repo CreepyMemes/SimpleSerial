@@ -35,7 +35,7 @@ void SimpleSerial::end() {
 // Method used to send new messages through the Simple Serial protocol
 void SimpleSerial::send(const std::vector<uint8_t> &message) {
     _pushQueue(message);
-    xQueueSend(_freertos_message_queue, _message_queue.back(), (TickType_t)10); // And sends it to the main task through the definedfreertos message queue
+    xQueueSend(_freertos_message_queue, &_message_queue.back(), (TickType_t)10); // And sends it to the main task through the definedfreertos message queue
 }
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
@@ -57,6 +57,7 @@ bool SimpleSerial::_isAvailableToSend(Message &message) {
 
 
         SS_LOG_I("New message to send: {%s}", vectorToHexString(*message_to_send).c_str());
+        // vectorToHexString(*message_to_send).c_str();
 
         try {
             // initiate the message handler with message as SENDER mode
@@ -146,6 +147,6 @@ void SimpleSerial::_mainTask(void *arg) {
             // receive msg protocol here
         }
 
-        delay(1); // Give other tasks a chance to run
+        delay(10); // Give other tasks a chance to run
     }
 }
