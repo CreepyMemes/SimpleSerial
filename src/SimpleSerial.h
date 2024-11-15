@@ -24,20 +24,17 @@ enum Handshake {
     FIN      // Finish
 };
 
-
 // TODO, TIMEOUT ERROR LOGIC
 // start_time = millis()
 // (millis() - start_time >= SIMPLE_SERIAL_TIMEOUT);
 
-// TODO: change queue to hold vector references and add a vector queue to class
-
-// Simple Serial api class
+// Simple Serial protocol API class
 class SimpleSerial {
     public:
         SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const int8_t tx_pin, uint8_t max_retries = 3, const UBaseType_t task_priority = 5);
         ~SimpleSerial();
 
-        void begin(const unsigned long baud_rate, const SerialConfig mode);
+        void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_8N1);
         void end();
 
         void send(const std::vector<uint8_t> &message);
@@ -48,15 +45,18 @@ class SimpleSerial {
         int8_t _rx_pin; // Defined pin for reading UART data
         int8_t _tx_pin; // Defined pin for writing UART data
 
-        TaskHandle_t _task_handle;  // Task handle of the outgoing commands task
-        UBaseType_t _task_priority; // Holds the main task's task_priority for the FreeRTOS scheduler
         uint8_t _max_retries;       // The amount of retries if the protocol fails
+        UBaseType_t _task_priority; // Holds the main task's task_priority for the FreeRTOS scheduler
+        TaskHandle_t _task_handle;  // Task handle of the outgoing commands task
 
-        QueueHandle_t _freertos_message_queue;             // Queue's handle of the outgoing messages freertos queue
         std::queue<std::vector<uint8_t> *> _message_queue; // Queue that handles outgoing messages
+        QueueHandle_t _freertos_message_queue;             // Queue's handle of the outgoing messages freertos queue
 
         bool _isAvailableToSend(Message &cmd);
         bool _isAvailableToReceive();
+
+        void _pushQueue(const std::vector<uint8_t> &message);
+        void _popQueue(std::vector<uint8_t> *message);
 
         void _createMessageQueue();
         void _destroyMessageQueue();

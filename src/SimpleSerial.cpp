@@ -7,9 +7,10 @@ SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const in
     _serial(serial),
     _rx_pin(rx_pin),
     _tx_pin(tx_pin),
-    _task_priority(task_priority),
     _max_retries(max_retries),
+    _task_priority(task_priority),
     _task_handle(NULL),
+    _message_queue(),
     _freertos_message_queue(NULL) {
 }
 
@@ -33,22 +34,42 @@ void SimpleSerial::end() {
 
 // Method used to send new messages through the Simple Serial protocol
 void SimpleSerial::send(const std::vector<uint8_t> &message) {
-    std::vector<uint8_t> *message_to_send = new std::vector<uint8_t>(message); // Allocates a new message vector dynamically
-    _message_queue.push(message_to_send);                                      // Pushes the dynamic vector's pointer to the object's message queue handler
-    xQueueSend(_freertos_message_queue, message_to_send, (TickType_t)10);      // And sends it to the main task through the definedfreertos message queue
+    _pushQueue(message);
+    xQueueSend(_freertos_message_queue, _message_queue.back(), (TickType_t)10); // And sends it to the main task through the definedfreertos message queue
 }
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
+void SimpleSerial::_pushQueue(const std::vector<uint8_t> &message) {
+    std::vector<uint8_t> *message_to_send = new std::vector<uint8_t>(message); // Allocates a new message vector dynamically
+    _message_queue.push(message_to_send);                                      // Pushes the dynamic vector's pointer to the object's message queue handler
+}
+
+void SimpleSerial::_popQueue(std::vector<uint8_t> *message) {
+    _message_queue.pop(); // Remove the message to send from the queue
+    delete message;       // Free the dynamically allocated vector
+}
 
 // TODO
 bool SimpleSerial::_isAvailableToSend(Message &message) {
     std::vector<uint8_t> *message_to_send = NULL;
 
     if (xQueueReceive(_freertos_message_queue, &message_to_send, (TickType_t)10) == pdTRUE) {
-        SS_LOG_I("New message to send: {%s}", vectorToHexString(message_to_send).c_str());
 
-        _message_queue.pop();   // Remove the message to send from the queue
-        delete message_to_send; // Free the dynamically allocated vector
+
+        SS_LOG_I("New message to send: {%s}", vectorToHexString(*message_to_send).c_str());
+
+        try {
+            // initiate the message handler with message as SENDER mode
+            message.create(*message_to_send);
+        }
+        // Error handling if message initiation fails
+        catch (const std::exception &e) {
+            SS_LOG_E("%s", e.what());
+            _popQueue(message_to_send);
+        }
+
+        _popQueue(message_to_send);
+
         return true;
     }
 
@@ -118,7 +139,7 @@ void SimpleSerial::_mainTask(void *arg) {
 
     while (true) {
         if (self->_isAvailableToSend(message)) {
-            // send msg protocol here
+            SS_LOG_I("Payload: {%s}", arrayToHexString(message.getPayload(), message.getSize()).c_str());
         }
 
         if (self->_isAvailableToReceive()) {
