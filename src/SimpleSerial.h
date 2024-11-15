@@ -13,11 +13,11 @@
 
 // Define the handshake states
 enum Handshake {
-    SYN     = 0x01, // Synchronize
-    SYN_ACK = 0x02, // Synchronize-Acknowledge
-    ACK     = 0x03, // Acknowledge
-    NAK     = 0x04, // Negative Acknowledge
-    FIN     = 0x05  // Finish
+    SYN,     // Synchronize
+    SYN_ACK, // Synchronize-Acknowledge
+    ACK,     // Acknowledge
+    NAK,     // Negative Acknowledge
+    FIN      // Finish
 };
 
 
