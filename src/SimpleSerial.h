@@ -11,7 +11,7 @@
 
 // SimpleSerial protocol constants
 #define SIMPLE_SERIAL_TIMEOUT    50   // Defines the timeout range for each interaction
-#define SIMPLE_SERIAL_STACK_SIZE 2048 // Defines the allocated stack size of the main task
+#define SIMPLE_SERIAL_STACK_SIZE 4096 // Defines the allocated stack size of the main task
 #define SIMPLE_SERIAL_CORE       1    // Defines which core the simple serial task will be pinned in
 #define SIMPLE_SERIAL_QUEUE_SIZE 10   // Defines the maximum amount of messages held in it's queue
 
