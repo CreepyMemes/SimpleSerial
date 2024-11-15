@@ -37,7 +37,7 @@ class SimpleSerial {
         void begin(const unsigned long baud_rate, const SerialConfig mode = SERIAL_8N1);
         void end();
 
-        void send(const std::vector<uint8_t> &message);
+        bool send(const std::vector<uint8_t> &message);
 
     private:
         HardwareSerial *_serial; // Pointer to the UART protocol interface instance
@@ -50,16 +50,16 @@ class SimpleSerial {
         TaskHandle_t _task_handle;  // Task handle of the outgoing commands task
 
         std::queue<std::vector<uint8_t> *> _message_queue; // Queue that handles outgoing messages
-        QueueHandle_t _freertos_message_queue;             // Queue's handle of the outgoing messages freertos queue
+        SemaphoreHandle_t _message_available_event;        // Semaphore used for signaling the task that a new message to send is available
 
         bool _isAvailableToSend(Message &cmd);
         bool _isAvailableToReceive();
 
-        void _pushQueue(const std::vector<uint8_t> &message);
+        bool _pushQueue(const std::vector<uint8_t> &message);
         void _popQueue();
 
-        void _createMessageQueue();
-        void _destroyMessageQueue();
+        void _createMessageAvailableEvent();
+        void _destroyMessageAvailableEvent();
 
         void _createMainTask();
         void _destroyMainTask();

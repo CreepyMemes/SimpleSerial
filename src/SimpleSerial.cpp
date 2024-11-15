@@ -11,7 +11,7 @@ SimpleSerial::SimpleSerial(HardwareSerial *serial, const int8_t rx_pin, const in
     _task_priority(task_priority),
     _task_handle(NULL),
     _message_queue(),
-    _freertos_message_queue(NULL) {
+    _message_available_event(NULL) {
 }
 
 // Destructor
@@ -22,44 +22,60 @@ SimpleSerial::~SimpleSerial() {
 // Initiates the uart protocol and the the async main task
 void SimpleSerial::begin(const unsigned long baud_rate, const SerialConfig mode) {
     _serial->begin(baud_rate, mode, _rx_pin, _tx_pin);
-    _createMessageQueue();
+    _createMessageAvailableEvent();
     _createMainTask();
 }
 
 // Destroy main task and messages queue
 void SimpleSerial::end() {
     _destroyMainTask();
-    _destroyMessageQueue();
+    _destroyMessageAvailableEvent();
 }
 
 // Method used to send new messages through the Simple Serial protocol
-void SimpleSerial::send(const std::vector<uint8_t> &message) {
-    _pushQueue(message);
-    xQueueSend(_freertos_message_queue, &_message_queue.back(), (TickType_t)10); // And sends it to the main task through the definedfreertos message queue
+bool SimpleSerial::send(const std::vector<uint8_t> &message) {
+    SS_LOG_I("New message to send: {%s}", vectorToHexString(message).c_str());
+
+    if (_pushQueue(message) == true) {
+        if (xSemaphoreGive(_message_available_event) == pdTRUE) {
+            SS_LOG_D("Semaphore event successfully released!");
+            return true;
+        }
+        SS_LOG_W("Semaphore event failed to release!");
+    }
+
+    return false;
 }
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
-void SimpleSerial::_pushQueue(const std::vector<uint8_t> &message) {
-    std::vector<uint8_t> *message_to_send = new std::vector<uint8_t>(message); // Allocates a new message vector dynamically
-    _message_queue.push(message_to_send);                                      // Pushes the dynamic vector's pointer to the object's message queue handler
+bool SimpleSerial::_pushQueue(const std::vector<uint8_t> &message) {
+    if (_message_queue.size() < SIMPLE_SERIAL_QUEUE_SIZE) {
+        std::vector<uint8_t> *message_to_send = new std::vector<uint8_t>(message); // Allocates a new message vector dynamically
+        _message_queue.push(message_to_send);                                      // Pushes the dynamic vector's pointer to the object's message queue handler
+
+        SS_LOG_D("Queue successfully pushed!");
+        return true;
+    }
+
+    SS_LOG_W("Queue Full, Failed to push message!");
+    return false;
 }
 
 void SimpleSerial::_popQueue() {
-    delete _message_queue.back(); // Free the dynamically allocated vector
-    _message_queue.pop();         // Remove the message to send from the queue
+    delete _message_queue.front(); // Free the dynamically allocated vector
+    _message_queue.pop();          // Remove the message to send from the queue
 }
 
-// TODO
+// TODO: no need to transfer vectors in freertos queue at this point...
+
+// Check if a new message to send is available
 bool SimpleSerial::_isAvailableToSend(Message &message) {
-    std::vector<uint8_t> *message_to_send = NULL;
+    if (xSemaphoreTake(_message_available_event, (TickType_t)10) == pdTRUE) {
+        SS_LOG_D("Semaphore event was taken successfully!");
 
-    if (xQueueReceive(_freertos_message_queue, &message_to_send, (TickType_t)10) == pdTRUE) {
-
-        SS_LOG_I("New message to send: {%s}", vectorToHexString(*message_to_send).c_str());
-
+        // Try to initiate the message handler as SENDER mode with new message to send
         try {
-            // initiate the message handler with message as SENDER mode
-            message.create(*message_to_send);
+            message.create(*_message_queue.front());
         }
         // Error handling if message initiation fails
         catch (const std::exception &e) {
@@ -74,7 +90,6 @@ bool SimpleSerial::_isAvailableToSend(Message &message) {
     return false;
 }
 
-
 // TODO
 bool SimpleSerial::_isAvailableToReceive() {
     if (_serial->available() > 0) {
@@ -86,21 +101,21 @@ bool SimpleSerial::_isAvailableToReceive() {
 }
 
 // Create the queue that will hold the outoging messages
-void SimpleSerial::_createMessageQueue() {
-    if (_freertos_message_queue == NULL) {
-        _freertos_message_queue = xQueueCreate(SIMPLE_SERIAL_QUEUE_SIZE, sizeof(std::vector<uint8_t> *));
+void SimpleSerial::_createMessageAvailableEvent() {
+    if (_message_available_event == NULL) {
+        _message_available_event = xSemaphoreCreateBinary();
 
-        if (_freertos_message_queue == NULL) {
-            SS_LOG_E("Queue for outgoing messages failed to create!");
+        if (_message_available_event == NULL) {
+            SS_LOG_E("Freertos semaphore for signaling outgoing message events failed to create!");
         }
     }
 }
 
 // Destroy the outgoing messages queue
-void SimpleSerial::_destroyMessageQueue() {
-    if (_freertos_message_queue != NULL) {
-        vQueueDelete(_freertos_message_queue);
-        _freertos_message_queue = NULL;
+void SimpleSerial::_destroyMessageAvailableEvent() {
+    if (_message_available_event != NULL) {
+        vSemaphoreDelete(_message_available_event);
+        _message_available_event = NULL;
     }
 }
 
@@ -137,13 +152,13 @@ void SimpleSerial::_mainTask(void *arg) {
 
     while (true) {
         if (self->_isAvailableToSend(message)) {
-            SS_LOG_I("Payload: {%s}", arrayToHexString(message.getPayload(), message.getSize()).c_str());
+            SS_LOG_I("Payload: {%s}\n", arrayToHexString(message.getPayload(), message.getSize()).c_str());
         }
 
         if (self->_isAvailableToReceive()) {
             // receive msg protocol here
         }
 
-        delay(10); // Give other tasks a chance to run
+        delay(1); // Give other tasks a chance to run
     }
 }
