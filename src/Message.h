@@ -3,10 +3,9 @@
 
 #include <Arduino.h>
 #include <esp_crc.h>
-
 #include <vector>
-#include <stdexcept>
 #include <cstring> // for memcpy
+#include <stdexcept>
 
 enum MessageMode {
     UNDEFINED,
