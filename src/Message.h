@@ -3,11 +3,10 @@
 
 #include <Arduino.h>
 #include <esp_crc.h>
-#include <vector>
-#include <string>
-#include <cstring> // for memcpy
 
-#include "Logging.h"
+#include <vector>
+#include <stdexcept>
+#include <cstring> // for memcpy
 
 enum MessageMode {
     UNDEFINED,
@@ -24,27 +23,26 @@ class Message {
         void decode(const std::vector<uint8_t> &payload);
         void create(const std::vector<uint8_t> &message);
 
-        bool verify() const;
-
         // Accessor method
         uint8_t getChecksum() const;
-        std::string getMessage() const;
-        uint8_t *getPayload() const;
+        std::vector<uint8_t> getMessage() const;
         size_t getSize() const;
+        uint8_t *getPayload() const;
 
     private:
-        MessageMode _mode;             // Saves which mode the object is currently in
+        MessageMode _mode; // Saves which mode the object is currently in
+
         std::vector<uint8_t> _message; // Message data
         uint8_t _checksum;             // Checksum of the message data
-        uint8_t *_payload;             // The payload array with message and checksum
-        size_t _size;                  // The payload size
+
+        size_t _size;      // The allocated size of the payload array
+        uint8_t *_payload; // The payload array that combines message and checksum
 
         uint8_t _calculateChecksum() const;
+        void _verifyChecksum() const;
 
         void _initPayloadArray();
         void _destroyPayloadArray();
-
-        std::string _ToHexString(uint8_t byte) const;
 };
 
 #endif // MESSAGE_H

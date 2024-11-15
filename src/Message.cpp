@@ -7,6 +7,7 @@ Message::Message() :
     _mode(MessageMode::UNDEFINED),
     _message(),
     _checksum(0),
+    _size(0),
     _payload(NULL) {
 }
 
@@ -22,6 +23,9 @@ void Message::decode(const std::vector<uint8_t> &payload) {
     _message.pop_back();
     _checksum = payload.back();
     _destroyPayloadArray();
+
+    // Verify if received checksum is correct, throw error if not
+    _verifyChecksum();
 }
 
 // Sender's method that creates a payload with calculated checksum
@@ -32,21 +36,6 @@ void Message::create(const std::vector<uint8_t> &message) {
     _initPayloadArray();
 }
 
-// Receiver's method to check if the checksum of the decoded message is correct
-bool Message::verify() const {
-    if (_mode == MessageMode::RECEIVER) {
-        uint8_t checksum = _calculateChecksum();
-
-        if (checksum == _checksum) {
-            return true;
-        }
-        // SS_LOG_E("Checksum verification failed, received: 0x%02x, expected: 0x%02x", _checksum, checksum);
-        return false;
-    }
-
-    SS_LOG_W("Attempted to verify checksum in SENDER MODE");
-    return 0;
-}
 
 // Checksum getter method
 uint8_t Message::getChecksum() const {
@@ -54,36 +43,27 @@ uint8_t Message::getChecksum() const {
 }
 
 // Receiver's method that returns a string containing extracted message bytes in hex values
-std::string Message::getMessage() const {
-    if (_mode == MessageMode::RECEIVER) {
-        std::string str = "";
-        for (uint8_t i : _message) str += _ToHexString(i);
-        str.pop_back();
-        return str;
+std::vector<uint8_t> Message::getMessage() const {
+    if (_mode != MessageMode::RECEIVER) {
+        throw std::runtime_error("Attempted to get message while not in RECEIVER mode!");
     }
-
-    SS_LOG_W("Attempted to get message string in SENDER MODE");
-    return "";
+    return _message;
 }
 
 // Sender's method that returns a pointer to the dynamically allocated payload array
 uint8_t *Message::getPayload() const {
-    if (_mode == MessageMode::SENDER) {
-        return _payload;
+    if (_mode != MessageMode::SENDER) {
+        throw std::runtime_error("Attempted to get payload array while not in SENDER mode!");
     }
-
-    SS_LOG_W("Attempted to get payload array in RECEIVER MODE");
-    return NULL;
+    return _payload;
 }
 
 // Sender's method that return the size of the allocated payload array
 size_t Message::getSize() const {
-    if (_mode == MessageMode::SENDER) {
-        return _size;
+    if (_mode != MessageMode::SENDER) {
+        throw std::runtime_error("Attempted to get size of payload array while not in SENDER mode!");
     }
-
-    SS_LOG_W("Attempted to get payload array size in RECEIVER MODE");
-    return 0;
+    return _size;
 }
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
@@ -91,6 +71,23 @@ size_t Message::getSize() const {
 // Calculates the CRC-8/ROHC checksum for the given data
 uint8_t Message::_calculateChecksum() const {
     return ~esp_crc8_le(0, const_cast<const uint8_t *>(_message.data()), _message.size());
+}
+
+// Calculates the checksum based on received message, throws error if received checksum and calculated don't match
+void Message::_verifyChecksum() const {
+    if (_mode != MessageMode::RECEIVER) {
+        throw std::runtime_error("Attempted to verify checksum while not in RECEIVER mode!");
+    }
+
+    // Calculate new checksum based on received message
+    uint8_t checksum = _calculateChecksum();
+
+    // Throw error if checksums don't match
+    if (_checksum != checksum) {
+        char errorMsg[100];
+        std::snprintf(errorMsg, sizeof(errorMsg), "Checksum verification failed, received: 0x%02X, expected: 0x%02X", _checksum, checksum);
+        throw std::runtime_error(errorMsg);
+    }
 }
 
 // Dynamically allocates the payload array ready to be sent
@@ -107,12 +104,6 @@ void Message::_destroyPayloadArray() {
     if (_payload != NULL) {
         delete[] _payload;
         _payload = NULL;
+        _size    = 0;
     }
-}
-
-// Helper function that converts a byte into a hex string
-std::string Message::_ToHexString(uint8_t byte) const {
-    char hexStr[5];
-    sprintf(hexStr, "0x%02x ", byte);
-    return std::string(hexStr);
 }
