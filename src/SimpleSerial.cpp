@@ -18,7 +18,7 @@ SimpleSerial::~SimpleSerial() {
     end();
 }
 
-// Initiates the uart protocol, and initiates the async task
+// Initiates the uart protocol and the the async main task
 void SimpleSerial::begin(const unsigned long baud_rate, const SerialConfig mode) {
     _serial->begin(baud_rate, mode, _rx_pin, _tx_pin);
     _createMessageQueue();
@@ -31,43 +31,17 @@ void SimpleSerial::end() {
     _destroyMessageQueue();
 }
 
-// Send a message through this protocol, it adds it to messages to send queue
+// TODO
 void SimpleSerial::send(const Message &msg) {
     xQueueSend(_message_queue, &msg, (TickType_t)10);
 }
 
 // -------------------------------------- PRIVATE METHODS -----------------------------------------------------
 
-// TODO ADD HANDSHAKE AND TEST THIS SHIT ALREADY!!!
-
-uint8_t _readBlock() {
-    // todo this is for handshake
-}
-
-// TODO this is ugly, make a struct for payload or someshit
-
-// This goes after successful handshake
-uint8_t SimpleSerial::_readMessage(uint8_t *msg) {
-
-    uint8_t block_idx = 0; // Variable that will hold the received block indexes
-    byte msg_block;        // Variable that stores each received 8 bit block per time
-
-    while (_serial->available() > 0) {
-        msg_block        = _serial->read(); // Read byte block
-        msg[block_idx++] = msg_block;       // Append byte block
-
-        if (block_idx > MESSAGE_MAX_DATA_SIZE / 8) {
-            SS_LOG_I("Error, received message exceeds maximum length");
-            return 0;
-        }
-    }
-
-    return block_idx * sizeof(uint8_t); // Return the received message size
-}
-
+// TODO
 bool SimpleSerial::_isAvailableToSend(Message &msg) {
     if (xQueueReceive(_message_queue, &msg, (TickType_t)10) == pdTRUE) {
-        SS_LOG_I("New message to be sent with size: %d", msg.getLength());
+
         return true;
     }
 
@@ -123,17 +97,13 @@ void SimpleSerial::_destroyMainTask() {
     }
 }
 
-// TODO, TIMEOUT ERROR LOGIC
-// start_time = millis()
-// (millis() - start_time >= SIMPLE_SERIAL_TIMEOUT);
-
 // TODO
 void SimpleSerial::_mainTask(void *arg) {
 
-    // Cast arg to SimpleSerial pointer to go into this object instance
+    // Cast arg to SimpleSerial pointer to access this object's instance
     SimpleSerial *self = (SimpleSerial *)arg;
 
-    // Create new message object to hold incoming/outcoming messages
+    // Create a Message object to manage incoming/outcoming messages
     Message msg;
 
     while (true) {

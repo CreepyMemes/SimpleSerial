@@ -2,8 +2,9 @@
 #define SIMPLE_SERIAL_H
 
 #include <Arduino.h>
-#include "Logging.h"
+
 #include "Message.h"
+#include "Logging.h"
 
 // SimpleSerial protocol constants
 #define SIMPLE_SERIAL_TIMEOUT    50   // Defines the timeout range for each interaction
@@ -18,6 +19,13 @@ enum Handshake {
     NAK     = 0x04, // Negative Acknowledge
     FIN     = 0x05  // Finish
 };
+
+
+// TODO, TIMEOUT ERROR LOGIC
+// start_time = millis()
+// (millis() - start_time >= SIMPLE_SERIAL_TIMEOUT);
+
+// TODO: change queue to hold vector references or some shit
 
 // Simple Serial api class
 class SimpleSerial {
@@ -41,7 +49,6 @@ class SimpleSerial {
         QueueHandle_t _message_queue; // Queue's handle of the outgoing commands queue
         uint8_t _max_retries;         // The amount of retries if the protocol fails
 
-        uint8_t _readMessage(uint8_t *msg);
         bool _isAvailableToSend(Message &cmd);
         bool _isAvailableToReceive();
 
